@@ -120,6 +120,7 @@ export function resolveCombat(
     const res = isCounter && win.onCounter ? win.onCounter : win.onHit;
 
     att.hitConnected = true;
+    def.lastHitLevel = win.level;
     def.comboCount += 1;
     const comboScale = Math.max(0.4, 1 - 0.08 * (def.comboCount - 1));
     const counterMul = isCounter ? 1.2 : 1.0;

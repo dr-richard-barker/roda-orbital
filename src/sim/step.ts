@@ -52,7 +52,8 @@ export function evaluateFighterPose(f: FighterState, out: Pose, globalFrame: num
     return sampleTrack(f.stance === 'RLX' ? POSE_TRACKS.GUARD_LOW : POSE_TRACKS.GUARD_HIGH, f.modeFrame, out);
   }
   if (f.mode === 'HITSTUN') {
-    return sampleTrack(POSE_TRACKS.HITSTUN, f.modeFrame, out);
+    const tr = f.lastHitLevel === 'HIGH' ? POSE_TRACKS.HITSTUN_HIGH : POSE_TRACKS.HITSTUN_MID;
+    return sampleTrack(tr ?? POSE_TRACKS.HITSTUN, f.modeFrame, out);
   }
   if (f.mode === 'JUGGLE') {
     return sampleTrack(POSE_TRACKS.AIR, f.modeFrame, out);
@@ -61,7 +62,8 @@ export function evaluateFighterPose(f: FighterState, out: Pose, globalFrame: num
     return sampleTrack(POSE_TRACKS.KNOCKDOWN, f.modeFrame, out);
   }
   if (f.mode === 'WALK') {
-    return sampleTrack(POSE_TRACKS.WALK_FWD, f.modeFrame, out);
+    const tr = f.walkDir < 0 ? POSE_TRACKS.WALK_BACK : POSE_TRACKS.WALK_FWD;
+    return sampleTrack(tr, f.modeFrame, out);
   }
   const stanceTr = POSE_TRACKS[f.stance] ?? POSE_TRACKS.GINGA;
   return sampleTrack(stanceTr, globalFrame, out);
@@ -311,6 +313,7 @@ function stepFighter(state: MatchState, f: FighterState, opp: FighterState, inp:
 
       if (f.stance === 'GINGA' && (forward !== 0 || side !== 0)) {
         f.mode = 'WALK';
+        f.walkDir = forward < 0 ? -1 : 1;
         const spd = forward >= 0 ? def.walkSpeed : def.backSpeed;
         const moveVec = vnorm([
           f.facing[0] * forward + f.facing[1] * side,

@@ -26,45 +26,45 @@ export const POSE_NEUTRAL: Pose = makePose(null, {
   },
 });
 
-/** Ginga back-step (right leg back, right arm guarding face, left arm back). */
+/** Ginga back-step (deep front knee bend, back ball-of-foot push, guarding forearm across face). */
 export const POSE_GINGA_R: Pose = makePose(null, {
-  root: { dx: -0.06, dy: -0.04, ry: -18 },
+  root: { dx: -0.08, dy: 0, ry: -24 },
   bones: {
-    pelvis: [8, -10, 4],
-    spine: [10, 12, -4],
-    chest: [8, 16, -4],
-    head: [-10, -12, 0],
-    upperArmR: [-65, -20, -25],
-    foreArmR: [-95, 0, 35],
-    upperArmL: [25, 10, 22],
-    foreArmL: [-45, 0, -10],
-    thighL: [-34, 10, 8],
-    shinL: [52, 0, 0],
-    footL: [-18, 0, 0],
-    thighR: [28, -10, -8],
-    shinR: [24, 0, 0],
-    footR: [-12, 0, 0],
+    pelvis: [10, -14, 6],
+    spine: [14, 16, -5],
+    chest: [10, 22, -6],
+    head: [-14, -18, 2],
+    upperArmR: [-72, -25, -28],
+    foreArmR: [-102, 0, 42],
+    upperArmL: [28, 12, 26],
+    foreArmL: [-52, 0, -14],
+    thighL: [-42, 12, 10],
+    shinL: [62, 0, 0],
+    footL: [-20, 0, 0],
+    thighR: [32, -12, -10],
+    shinR: [28, 0, 0],
+    footR: [18, 0, 0], // heel lifted, pushing from ball of foot
   },
 });
 
-/** Ginga center pass (feet parallel, knees bent, arms wide). */
+/** Ginga center pass (cadeira / base squat, knees bent, arms flowing wide). */
 export const POSE_GINGA_MID: Pose = makePose(null, {
-  root: { dx: 0, dy: -0.06, ry: 0 },
+  root: { dx: 0, dy: 0, ry: 0 },
   bones: {
-    pelvis: [6, 0, 0],
-    spine: [8, 0, 0],
-    chest: [6, 0, 0],
-    head: [-8, 0, 0],
-    upperArmL: [-40, 15, 25],
-    foreArmL: [-75, 0, -25],
-    upperArmR: [-40, -15, -25],
-    foreArmR: [-75, 0, 25],
-    thighL: [-28, 12, 12],
-    shinL: [46, 0, 0],
-    footL: [-18, 0, 0],
-    thighR: [-28, -12, -12],
-    shinR: [46, 0, 0],
-    footR: [-18, 0, 0],
+    pelvis: [8, 0, 0],
+    spine: [10, 0, 0],
+    chest: [8, 0, 0],
+    head: [-10, 0, 0],
+    upperArmL: [-46, 18, 30],
+    foreArmL: [-82, 0, -28],
+    upperArmR: [-46, -18, -30],
+    foreArmR: [-82, 0, 28],
+    thighL: [-36, 14, 15],
+    shinL: [58, 0, 0],
+    footL: [-22, 0, 0],
+    thighR: [-36, -14, -15],
+    shinR: [58, 0, 0],
+    footR: [-22, 0, 0],
   },
 });
 
@@ -121,7 +121,7 @@ export const TRACK_HSP: Track = {
 
 /** Negativa / Cocorinha (Low Ground Stance - RLX): low crouch, one leg extended, hand on floor. */
 export const POSE_RLX_A: Pose = makePose(null, {
-  root: { dy: -0.02, rx: 14, ry: -22 },
+  root: { dy: 0, rx: 14, ry: -22 },
   bones: {
     pelvis: [18, 0, 0],
     spine: [20, 10, 6],
@@ -142,7 +142,7 @@ export const POSE_RLX_A: Pose = makePose(null, {
 });
 
 export const POSE_RLX_B: Pose = makePose(POSE_RLX_A, {
-  root: { dy: -0.03, rx: 16, ry: -16 },
+  root: { dy: 0, rx: 16, ry: -16 },
   bones: {
     spine: [24, 14, 8],
     thighR: [-70, -12, -14],
@@ -161,11 +161,41 @@ export const TRACK_RLX: Track = {
 // Utility / Reaction Tracks
 // ---------------------------------------------------------------------------
 
+const WALK_STEP_A: Pose = makePose(POSE_GINGA_MID, {
+  root: { ry: -12, dy: 0 },
+  bones: {
+    spine: [14, 10, 0],
+    chest: [12, 14, 0],
+    head: [-14, -12, 0],
+    upperArmL: [-55, 18, 22],
+    foreArmL: [-95, 0, -20],
+    upperArmR: [-38, -10, -24],
+    foreArmR: [-85, 0, 25],
+    thighL: [-46, 8, 8],
+    shinL: [62, 0, 0],
+    footL: [-16, 0, 0],
+    thighR: [22, -8, -8],
+    shinR: [24, 0, 0],
+    footR: [12, 0, 0],
+  },
+});
+const WALK_STEP_B: Pose = mirrorPose(WALK_STEP_A);
+
 export const TRACK_WALK_FWD: Track = {
-  loop: 28,
+  loop: 24,
   keys: [
-    { f: 0, pose: POSE_GINGA_R },
-    { f: 14, pose: POSE_GINGA_L },
+    { f: 0, pose: WALK_STEP_A },
+    { f: 6, pose: POSE_GINGA_MID },
+    { f: 12, pose: WALK_STEP_B },
+    { f: 18, pose: POSE_GINGA_MID },
+  ],
+};
+
+export const TRACK_WALK_BACK: Track = {
+  loop: 26,
+  keys: [
+    { f: 0, pose: WALK_STEP_B },
+    { f: 13, pose: WALK_STEP_A },
   ],
 };
 
@@ -174,13 +204,15 @@ export const TRACK_GUARD_HIGH: Track = {
     {
       f: 0,
       pose: makePose(POSE_GINGA_MID, {
+        root: { rx: -4, ry: -12 },
         bones: {
-          spine: [12, 0, 0],
-          chest: [12, 0, 0],
-          upperArmL: [-75, 25, 10],
-          foreArmL: [-110, 0, -25],
-          upperArmR: [-75, -25, -10],
-          foreArmR: [-110, 0, 25],
+          spine: [14, 8, 0],
+          chest: [14, 10, 0],
+          head: [-12, -10, 0],
+          upperArmL: [-82, 32, 10],
+          foreArmL: [-115, 0, -28],
+          upperArmR: [-82, -32, -10],
+          foreArmR: [-115, 0, 28],
         },
       }),
     },
@@ -193,42 +225,81 @@ export const TRACK_GUARD_LOW: Track = {
       f: 0,
       pose: makePose(POSE_RLX_A, {
         bones: {
-          upperArmL: [-65, 20, 10],
-          foreArmL: [-105, 0, -20],
-          upperArmR: [-65, -20, -10],
-          foreArmR: [-105, 0, 20],
+          upperArmL: [-72, 24, 10],
+          foreArmL: [-110, 0, -22],
+          upperArmR: [-72, -24, -10],
+          foreArmR: [-110, 0, 22],
         },
       }),
     },
   ],
 };
 
-export const TRACK_HITSTUN: Track = {
+/** High hit recoil (SF2 head & chest snap backward). */
+export const TRACK_HITSTUN_HIGH: Track = {
   keys: [
     {
       f: 0,
       pose: makePose(POSE_NEUTRAL, {
-        root: { rx: -18 },
+        root: { rx: -24, ry: 12 },
         bones: {
-          spine: [-16, 8, 0],
-          chest: [-18, 10, 0],
-          head: [-22, 0, 0],
-          upperArmL: [-20, 0, 40],
-          foreArmL: [-40, 0, 0],
-          upperArmR: [-20, 0, -40],
-          foreArmR: [-40, 0, 0],
+          spine: [-22, 10, -6],
+          chest: [-24, 12, -6],
+          head: [-34, 8, 0],
+          upperArmL: [-15, 0, 52],
+          foreArmL: [-35, 0, 0],
+          upperArmR: [-15, 0, -52],
+          foreArmR: [-35, 0, 0],
+          thighL: [-28, 6, 8],
+          shinL: [42, 0, 0],
         },
       }),
     },
     {
       f: 12,
+      easing: 'ease',
       pose: makePose(POSE_NEUTRAL, {
-        root: { rx: -6 },
-        bones: { spine: [-6, 0, 0], chest: [-6, 0, 0] },
+        root: { rx: -8 },
+        bones: { spine: [-6, 0, 0], chest: [-6, 0, 0], head: [-8, 0, 0] },
       }),
     },
   ],
 };
+
+/** Mid/low hit recoil (gut-punch double-over). */
+export const TRACK_HITSTUN_MID: Track = {
+  keys: [
+    {
+      f: 0,
+      pose: makePose(POSE_NEUTRAL, {
+        root: { rx: 22, ry: -10 },
+        bones: {
+          spine: [28, -8, 0],
+          chest: [24, -10, 0],
+          head: [18, 0, 0],
+          upperArmL: [-55, 25, 10],
+          foreArmL: [-95, 0, -30],
+          upperArmR: [-55, -25, -10],
+          foreArmR: [-95, 0, 30],
+          thighL: [-42, 8, 10],
+          shinL: [65, 0, 0],
+          thighR: [-28, -8, -10],
+          shinR: [50, 0, 0],
+        },
+      }),
+    },
+    {
+      f: 12,
+      easing: 'ease',
+      pose: makePose(POSE_NEUTRAL, {
+        root: { rx: 6 },
+        bones: { spine: [8, 0, 0], chest: [8, 0, 0] },
+      }),
+    },
+  ],
+};
+
+export const TRACK_HITSTUN = TRACK_HITSTUN_MID;
 
 export const TRACK_AIR: Track = {
   keys: [
@@ -273,110 +344,166 @@ export const TRACK_KNOCKDOWN: Track = {
 // Attack & Mobility Pose Tracks
 // ---------------------------------------------------------------------------
 
-/** Bênção (Front push kick) */
+/** Bênção (Front push kick — coiled knee chamber -> explosive hip thrust + hold) */
 export const TRACK_BENCAO: Track = {
   keys: [
     { f: 0, pose: POSE_GINGA_R },
     {
       f: 5,
+      easing: 'coil',
       pose: makePose(POSE_NEUTRAL, {
-        root: { ry: -10 },
+        root: { ry: -14 },
         bones: {
-          thighR: [-85, 0, 0],
-          shinR: [110, 0, 0],
-          upperArmL: [-60, 0, 20],
-          foreArmL: [-80, 0, 0],
-          upperArmR: [-50, 0, -25],
-          foreArmR: [-80, 0, 0],
-        },
-      }),
-    },
-    {
-      f: 10,
-      linear: true,
-      pose: makePose(POSE_NEUTRAL, {
-        root: { rx: -14, ry: -12 },
-        bones: {
-          spine: [-12, 0, 0],
-          thighR: [-95, 0, -4],
-          shinR: [6, 0, 0],
-          footR: [25, 0, 0],
-          thighL: [10, 0, 6],
-          shinL: [18, 0, 0],
-          upperArmL: [-40, 0, 35],
-          upperArmR: [20, 0, -35],
-        },
-      }),
-    },
-    { f: 16, pose: makePose(POSE_NEUTRAL, { root: { rx: -10 }, bones: { thighR: [-80, 0, 0], shinR: [25, 0, 0] } }) },
-    { f: 26, pose: POSE_GINGA_L },
-  ],
-};
-
-/** Martelo (Roundhouse kick - high) */
-export const TRACK_MARTELO: Track = {
-  keys: [
-    { f: 0, pose: POSE_GINGA_R },
-    {
-      f: 6,
-      pose: makePose(POSE_NEUTRAL, {
-        root: { ry: -45, rz: -18 },
-        bones: {
-          thighR: [-65, 0, -45],
-          shinR: [95, 0, 0],
-          upperArmL: [-50, 0, 35],
+          thighR: [-95, 0, 0],
+          shinR: [118, 0, 0],
+          upperArmL: [-65, 0, 22],
           foreArmL: [-85, 0, 0],
-          upperArmR: [-50, 0, -35],
+          upperArmR: [-55, 0, -25],
           foreArmR: [-85, 0, 0],
         },
       }),
     },
     {
-      f: 11,
+      f: 9,
+      easing: 'snap',
+      pose: makePose(POSE_NEUTRAL, {
+        root: { rx: -16, ry: -12 },
+        bones: {
+          spine: [-14, 0, 0],
+          thighR: [-96, 0, -4],
+          shinR: [4, 0, 0],
+          footR: [28, 0, 0],
+          thighL: [14, 0, 6],
+          shinL: [16, 0, 0],
+          upperArmL: [-40, 0, 40],
+          upperArmR: [25, 0, -35],
+        },
+      }),
+    },
+    {
+      f: 13,
       linear: true,
       pose: makePose(POSE_NEUTRAL, {
-        root: { ry: -72, rz: -38 },
+        root: { rx: -16, ry: -12 },
         bones: {
-          spine: [10, 15, -14],
-          thighR: [-25, 0, -95],
-          shinR: [8, 0, 0],
-          footR: [35, 0, 0],
+          spine: [-14, 0, 0],
+          thighR: [-96, 0, -4],
+          shinR: [4, 0, 0],
+          footR: [28, 0, 0],
+          thighL: [14, 0, 6],
+          shinL: [16, 0, 0],
+          upperArmL: [-40, 0, 40],
+          upperArmR: [25, 0, -35],
+        },
+      }),
+    },
+    { f: 18, pose: makePose(POSE_NEUTRAL, { root: { rx: -8 }, bones: { thighR: [-75, 0, 0], shinR: [38, 0, 0] } }) },
+    { f: 26, pose: POSE_GINGA_L },
+  ],
+};
+
+/** Martelo (High roundhouse kick — chambered knee -> SF2 whipped extension + impact hold) */
+export const TRACK_MARTELO: Track = {
+  keys: [
+    { f: 0, pose: POSE_GINGA_R },
+    {
+      f: 6,
+      easing: 'coil',
+      pose: makePose(POSE_NEUTRAL, {
+        root: { ry: -48, rz: -20 },
+        bones: {
+          thighR: [-72, 0, -52],
+          shinR: [105, 0, 0],
+          upperArmL: [-55, 0, 38],
+          foreArmL: [-90, 0, 0],
+          upperArmR: [-55, 0, -38],
+          foreArmR: [-90, 0, 0],
+        },
+      }),
+    },
+    {
+      f: 10,
+      easing: 'snap',
+      pose: makePose(POSE_NEUTRAL, {
+        root: { ry: -76, rz: -42 },
+        bones: {
+          spine: [10, 18, -16],
+          head: [-6, 48, 20], // eyes stay locked on target!
+          thighR: [-24, 0, -98],
+          shinR: [6, 0, 0],
+          footR: [40, 0, 0],
           thighL: [6, 0, 10],
           shinL: [12, 0, 0],
-          upperArmL: [-45, 0, 45],
+          upperArmL: [-45, 0, 48],
           upperArmR: [-65, 0, -25],
           foreArmR: [-95, 0, 0],
         },
       }),
     },
-    { f: 17, pose: makePose(POSE_NEUTRAL, { root: { ry: -55, rz: -22 }, bones: { thighR: [-30, 0, -70], shinR: [45, 0, 0] } }) },
+    {
+      f: 14,
+      linear: true,
+      pose: makePose(POSE_NEUTRAL, {
+        root: { ry: -76, rz: -42 },
+        bones: {
+          spine: [10, 18, -16],
+          head: [-6, 48, 20],
+          thighR: [-24, 0, -98],
+          shinR: [6, 0, 0],
+          footR: [40, 0, 0],
+          thighL: [6, 0, 10],
+          shinL: [12, 0, 0],
+          upperArmL: [-45, 0, 48],
+          upperArmR: [-65, 0, -25],
+          foreArmR: [-95, 0, 0],
+        },
+      }),
+    },
+    { f: 19, pose: makePose(POSE_NEUTRAL, { root: { ry: -52, rz: -22 }, bones: { thighR: [-30, 0, -68], shinR: [48, 0, 0] } }) },
     { f: 28, pose: POSE_GINGA_MID },
   ],
 };
 
-/** Ponteira (Fast front snap kick - jab equivalent) */
+/** Ponteira (Fast front snap kick — crisp jab speed) */
 export const TRACK_PONTEIRA: Track = {
   keys: [
     { f: 0, pose: POSE_GINGA_L },
     {
       f: 4,
+      easing: 'coil',
       pose: makePose(POSE_NEUTRAL, {
-        bones: { thighL: [-75, 0, 0], shinL: [95, 0, 0] },
+        bones: { thighL: [-78, 0, 0], shinL: [100, 0, 0] },
       }),
     },
     {
-      f: 7,
+      f: 6,
+      easing: 'snap',
+      pose: makePose(POSE_NEUTRAL, {
+        root: { rx: -10, ry: 10 },
+        bones: {
+          thighL: [-94, 0, 0],
+          shinL: [6, 0, 0],
+          footL: [42, 0, 0],
+          upperArmL: [-60, 0, 22],
+          foreArmL: [-95, 0, 0],
+          upperArmR: [-60, 0, -22],
+          foreArmR: [-95, 0, 0],
+        },
+      }),
+    },
+    {
+      f: 9,
       linear: true,
       pose: makePose(POSE_NEUTRAL, {
-        root: { rx: -8, ry: 8 },
+        root: { rx: -10, ry: 10 },
         bones: {
-          thighL: [-92, 0, 0],
-          shinL: [8, 0, 0],
-          footL: [40, 0, 0],
-          upperArmL: [-55, 0, 20],
-          foreArmL: [-90, 0, 0],
-          upperArmR: [-55, 0, -20],
-          foreArmR: [-90, 0, 0],
+          thighL: [-94, 0, 0],
+          shinL: [6, 0, 0],
+          footL: [42, 0, 0],
+          upperArmL: [-60, 0, 22],
+          foreArmL: [-95, 0, 0],
+          upperArmR: [-60, 0, -22],
+          foreArmR: [-95, 0, 0],
         },
       }),
     },
@@ -384,36 +511,37 @@ export const TRACK_PONTEIRA: Track = {
   ],
 };
 
-/** Armada (Spinning crescent kick) */
+/** Armada (Spinning crescent kick — tight spin windup -> explosive whip) */
 export const TRACK_ARMADA: Track = {
   keys: [
     { f: 0, pose: POSE_GINGA_R },
     {
       f: 6,
+      easing: 'coil',
       pose: makePose(POSE_NEUTRAL, {
         root: { ry: 120 },
         bones: { spine: [12, 25, 0], chest: [10, 25, 0], upperArmL: [-40, 0, 55], upperArmR: [-40, 0, -55] },
       }),
     },
     {
-      f: 13,
-      linear: true,
+      f: 12,
+      easing: 'snap',
       pose: makePose(POSE_NEUTRAL, {
-        root: { ry: 270, rz: -18 },
+        root: { ry: 270, rz: -20 },
         bones: {
-          thighR: [-95, 0, -28],
-          shinR: [6, 0, 0],
-          upperArmL: [-40, 0, 65],
-          upperArmR: [-40, 0, -65],
+          thighR: [-98, 0, -28],
+          shinR: [5, 0, 0],
+          upperArmL: [-40, 0, 68],
+          upperArmR: [-40, 0, -68],
         },
       }),
     },
     {
-      f: 19,
+      f: 17,
       linear: true,
       pose: makePose(POSE_NEUTRAL, {
-        root: { ry: 345, rz: -10 },
-        bones: { thighR: [-75, 0, -10], shinR: [14, 0, 0] },
+        root: { ry: 325, rz: -14 },
+        bones: { thighR: [-82, 0, -14], shinR: [10, 0, 0] },
       }),
     },
     { f: 32, pose: POSE_GINGA_L },
@@ -454,6 +582,7 @@ export const TRACK_MEIA_LUA_COMPASSO: Track = {
     { f: 0, pose: POSE_GINGA_R },
     {
       f: 7,
+      easing: 'coil',
       pose: makePose(POSE_NEUTRAL, {
         root: { rx: 75, ry: 110, rz: 15 },
         bones: {
@@ -467,8 +596,8 @@ export const TRACK_MEIA_LUA_COMPASSO: Track = {
       }),
     },
     {
-      f: 15,
-      linear: true,
+      f: 14,
+      easing: 'snap',
       pose: makePose(POSE_NEUTRAL, {
         root: { rx: 82, ry: 255, rz: 25 },
         bones: {
@@ -752,21 +881,37 @@ export const TRACK_GALOPANTE: Track = {
     { f: 0, pose: POSE_GINGA_R },
     {
       f: 5,
+      easing: 'coil',
       pose: makePose(POSE_GINGA_R, {
-        root: { ry: -35 },
-        bones: { upperArmR: [-65, -35, -75], foreArmR: [-30, 0, 0] },
+        root: { ry: -38 },
+        bones: { upperArmR: [-65, -35, -78], foreArmR: [-35, 0, 0] },
       }),
     },
     {
-      f: 10,
+      f: 9,
+      easing: 'snap',
+      pose: makePose(POSE_GINGA_MID, {
+        root: { ry: 28, dz: 0.16 },
+        bones: {
+          spine: [14, 24, 0],
+          chest: [12, 28, 0],
+          upperArmR: [-86, 38, -18],
+          foreArmR: [-10, 0, 0],
+          upperArmL: [-45, 0, 25],
+          foreArmL: [-80, 0, 0],
+        },
+      }),
+    },
+    {
+      f: 12,
       linear: true,
       pose: makePose(POSE_GINGA_MID, {
-        root: { ry: 25, dz: 0.15 },
+        root: { ry: 28, dz: 0.16 },
         bones: {
-          spine: [12, 20, 0],
-          chest: [10, 25, 0],
-          upperArmR: [-85, 35, -18],
-          foreArmR: [-12, 0, 0],
+          spine: [14, 24, 0],
+          chest: [12, 28, 0],
+          upperArmR: [-86, 38, -18],
+          foreArmR: [-10, 0, 0],
           upperArmL: [-45, 0, 25],
           foreArmL: [-80, 0, 0],
         },
@@ -847,9 +992,12 @@ export const POSE_TRACKS: Record<string, Track> = {
   RLX: TRACK_RLX,
   AIR: TRACK_AIR,
   WALK_FWD: TRACK_WALK_FWD,
+  WALK_BACK: TRACK_WALK_BACK,
   GUARD_HIGH: TRACK_GUARD_HIGH,
   GUARD_LOW: TRACK_GUARD_LOW,
   HITSTUN: TRACK_HITSTUN,
+  HITSTUN_HIGH: TRACK_HITSTUN_HIGH,
+  HITSTUN_MID: TRACK_HITSTUN_MID,
   KNOCKDOWN: TRACK_KNOCKDOWN,
   ponteira: TRACK_PONTEIRA,
   galopante: TRACK_GALOPANTE,

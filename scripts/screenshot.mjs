@@ -43,18 +43,18 @@ try {
   await new Promise((r) => setTimeout(r, 1500));
   await page.screenshot({ path: path.join(OUT, '01-ginga-fight.png') });
 
-  // Toggle P1 Maculelê machete outfit + Hitboxes + P1 Autopilot + Touch
+  // Toggle P1 Maculelê machete outfit + P1 Autopilot + Touch
   await page.click('button[data-act="maculele-0"]');
-  await page.click('button[data-act="hitboxes"]');
   await page.click('button[data-act="auto-0"]');
   await page.click('button[data-act="touch"]');
   await new Promise((r) => setTimeout(r, 1400));
   await page.screenshot({ path: path.join(OUT, '02-maculele-auto-hitboxes.png') });
 
-  // Open move list
-  await page.click('button[data-act="moves"]');
-  await new Promise((r) => setTimeout(r, 400));
-  await page.screenshot({ path: path.join(OUT, '03-movelist.png') });
+  // Turn off touch, enable Retro CRT mode for visual check
+  await page.click('button[data-act="touch"]');
+  await page.click('button[data-act="retro"]');
+  await new Promise((r) => setTimeout(r, 800));
+  await page.screenshot({ path: path.join(OUT, '03-retro-crt.png') });
 
   console.log('Screenshots saved to shots/. Errors:', errors.length);
   if (errors.length) {

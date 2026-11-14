@@ -46,115 +46,175 @@ html, body, #app {
   letter-spacing: 0.04em;
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
 }
-.name { font-size: 1.05rem; }
+.name {
+  font-size: 1.15rem;
+  font-style: italic;
+  font-weight: 900;
+  color: #ffe600;
+  text-shadow: 2px 2px 0 #7a0c18, -1px -1px 0 #140818;
+  letter-spacing: 0.06em;
+}
 
 .stance-pill {
-  font-size: 0.7rem;
-  font-weight: 700;
+  font-size: 0.68rem;
+  font-weight: 800;
   padding: 2px 7px;
-  border-radius: 99px;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  background: rgba(20, 12, 34, 0.85);
+  border: 1px solid #ffd166;
+  color: #ffd166;
 }
 
 .auto-badge {
   font-size: 0.7rem;
   font-weight: 800;
   padding: 2px 7px;
-  border-radius: 6px;
+  border-radius: 4px;
   background: #ffb703;
   color: #16101c;
 }
-.pips { font-size: 0.9rem; letter-spacing: 3px; color: #ffd166; }
+.pips { font-size: 1rem; letter-spacing: 3px; color: #ffe600; text-shadow: 1px 1px 0 #000; }
 
+/* Classic SF2 Yellow-over-Crimson health bars with delayed red drain */
 .hp-track {
+  position: relative;
   width: 100%;
-  height: 18px;
-  background: rgba(15, 10, 22, 0.78);
-  border: 2px solid rgba(255, 255, 255, 0.28);
-  border-radius: 5px;
+  height: 22px;
+  background: #3a0611;
+  border: 3px solid #f7f4eb;
+  border-radius: 3px;
   overflow: hidden;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55), inset 0 2px 0 rgba(0, 0, 0, 0.4);
+  transform: skewX(-8deg);
 }
-.hp-fill {
-  height: 100%;
+.hp-trail {
+  position: absolute;
+  top: 0;
+  bottom: 0;
   width: 100%;
-  transition: width 60ms linear;
+  background: #e6192e;
 }
-.hp-fill.p1 {
-  background: linear-gradient(90deg, #e63946, #f4a261);
+.hp-trail.p1 { right: 0; }
+.hp-trail.p2 { left: 0; }
+
+.hp-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+  background: linear-gradient(180deg, #fff44f 0%, #ffd000 55%, #e69d00 100%);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.55);
 }
-.hp-fill.p2 {
-  margin-left: auto;
-  background: linear-gradient(270deg, #e63946, #f4a261);
-}
+.hp-fill.p1 { right: 0; }
+.hp-fill.p2 { left: 0; }
 
 .mal-track {
   width: 65%;
-  height: 6px;
-  background: rgba(15, 10, 22, 0.75);
-  border-radius: 99px;
+  height: 7px;
+  background: rgba(15, 10, 22, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 3px;
   overflow: hidden;
+  transform: skewX(-8deg);
 }
 .mal-fill {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, #00c2a8, #ffd166);
+  background: linear-gradient(90deg, #00e5ff, #ffd166);
   transition: width 80ms linear;
 }
 
 .combo-callout {
   margin-top: 6px;
-  font-size: 1.15rem;
+  font-size: 1.25rem;
+  font-style: italic;
   font-weight: 900;
-  color: #ffd166;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85);
+  color: #ffe600;
+  text-shadow: 2px 2px 0 #b80c18, 0 4px 10px rgba(0, 0, 0, 0.9);
 }
 
 .hud-center {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
+}
+.ko-emblem {
+  font-size: 0.85rem;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 0.08em;
+  padding: 2px 10px;
+  background: linear-gradient(180deg, #e6192e, #8a0414);
+  color: #fff44f;
+  border: 2px solid #ffffff;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 .beat-ring {
-  width: 62px;
-  height: 62px;
+  width: 54px;
+  height: 54px;
   border-radius: 50%;
-  background: rgba(18, 12, 26, 0.85);
-  border: 3px solid rgba(255, 255, 255, 0.35);
+  background: rgba(18, 12, 26, 0.88);
+  border: 3px solid rgba(255, 255, 255, 0.4);
   display: grid;
   place-items: center;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55);
   transition: border-color 60ms;
 }
 .beat-ring.on-beat {
-  border-color: #ffd166;
-  box-shadow: 0 0 18px rgba(255, 209, 102, 0.8);
+  border-color: #ffe600;
+  box-shadow: 0 0 18px rgba(255, 230, 0, 0.85);
 }
 .timer {
   font-size: 1.45rem;
   font-weight: 900;
+  color: #ffe600;
+  text-shadow: 2px 2px 0 #7a0c18;
 }
 .round-label {
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.14em;
-  opacity: 0.9;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  opacity: 0.95;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.85);
 }
 
 .center-banner {
   align-self: center;
-  font-size: clamp(1.6rem, 4vw, 3rem);
+  font-size: clamp(1.8rem, 4.5vw, 3.2rem);
+  font-style: italic;
   font-weight: 900;
   letter-spacing: 0.08em;
-  color: #ffd166;
-  text-shadow: 0 4px 18px rgba(0, 0, 0, 0.9);
-  background: rgba(18, 10, 28, 0.55);
-  padding: 10px 28px;
-  border-radius: 12px;
-  border: 2px solid rgba(255, 209, 102, 0.45);
+  color: #ffe600;
+  text-shadow: 4px 4px 0 #a30b1b, 0 8px 24px rgba(0, 0, 0, 0.9);
+  background: rgba(18, 10, 28, 0.65);
+  padding: 10px 30px;
+  border-radius: 8px;
+  border: 3px solid #ffe600;
+  transform: skewX(-8deg);
+}
+
+/* Optional Retro CPS-1 Arcade CRT & Crisp Pixel Mode */
+.retro-canvas {
+  width: 100% !important;
+  height: 100% !important;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+body.crt-scanlines::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.22) 3px,
+    rgba(0, 0, 0, 0.22) 4px
+  );
 }
 
 .frame-bar {

@@ -79,9 +79,11 @@ export interface FighterState {
   inputBuf: BufferedInput[];
   prevButtons: number;
 
-  // Sidestep state
+  // Sidestep & walk direction
   sidestepDir: number; // -1, 0, +1
   sidestepTimer: number;
+  walkDir: number; // 1 = forward, -1 = backward
+  lastHitLevel: 'HIGH' | 'MID' | 'LOW' | 'THROW';
 }
 
 export interface SimEvent {
@@ -163,6 +165,8 @@ function makeFighter(slot: 0 | 1, charId: string, paletteIdx: number, costume: C
     prevButtons: 0,
     sidestepDir: 0,
     sidestepTimer: 0,
+    walkDir: 1,
+    lastHitLevel: 'MID',
   };
 }
 
@@ -244,6 +248,8 @@ export function hashMatchState(s: MatchState): number {
     h.f64(f.malicia);
     h.i32(f.juggleHits);
     h.i32(f.comboCount);
+    h.i32(f.walkDir);
+    h.str(f.lastHitLevel);
   }
   return h.finish();
 }

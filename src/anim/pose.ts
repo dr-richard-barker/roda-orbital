@@ -64,14 +64,32 @@ export function mirrorPose(src: Pose): Pose {
   return p;
 }
 
+export type EasingMode = 'ease' | 'snap' | 'coil' | 'linear';
+
 export interface Key {
   f: number;
   pose: Pose;
-  linear?: boolean; // default: smoothstep ease into this key
+  linear?: boolean; // legacy shorthand for easing: 'linear'
+  easing?: EasingMode;
 }
 export interface Track {
   keys: Key[];
   loop?: number; // loop length in frames (for idle/stance cycles)
+}
+
+function applyEasing(u: number, k: Key): number {
+  const mode: EasingMode = k.easing ?? (k.linear ? 'linear' : 'ease');
+  if (mode === 'linear') return u;
+  if (mode === 'snap') {
+    // Explosive SF2 startup: rapid extension right into the impact pose
+    const inv = 1 - u;
+    return 1 - inv * inv * inv * inv;
+  }
+  if (mode === 'coil') {
+    // Slow wind-up anticipation before explosion
+    return u * u * u;
+  }
+  return ease(u);
 }
 
 /** Sample a track at (possibly fractional) frame t into `out`. */
@@ -86,8 +104,8 @@ export function sampleTrack(track: Track, t: number, out: Pose): Pose {
     const k1 = keys[i];
     if (t <= k1.f) {
       const k0 = keys[i - 1];
-      let u = (t - k0.f) / (k1.f - k0.f);
-      if (!k1.linear) u = ease(u);
+      let u = (t - k0.f) / Math.max(1e-5, k1.f - k0.f);
+      u = applyEasing(u, k1);
       const a = k0.pose, b = k1.pose;
       for (let j = 0; j < POSE_LEN; j++) out[j] = a[j] + (b[j] - a[j]) * u;
       return out;
@@ -96,8 +114,8 @@ export function sampleTrack(track: Track, t: number, out: Pose): Pose {
   if (track.loop) {
     // wrap from last key back to first
     const k0 = keys[keys.length - 1];
-    let u = (t - k0.f) / (track.loop - k0.f);
-    u = ease(u);
+    let u = (t - k0.f) / Math.max(1e-5, track.loop - k0.f);
+    u = applyEasing(u, keys[0]);
     const a = k0.pose, b = keys[0].pose;
     for (let j = 0; j < POSE_LEN; j++) out[j] = a[j] + (b[j] - a[j]) * u;
     return out;

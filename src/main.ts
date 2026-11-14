@@ -68,6 +68,9 @@ const hud = new GameHud(app, {
   onToggleHitboxes() {
     renderer.debug.setVisible(!renderer.debug.isVisible());
   },
+  onToggleRetro() {
+    renderer.setRetroMode(!renderer.isRetroMode());
+  },
   onToggleTouch() {
     audio.unlock();
     touch.setVisible(!touch.isVisible());
@@ -138,18 +141,21 @@ function frame(now: number): void {
     audio.handleEvents(state.events);
     for (const ev of state.events) {
       if (ev.type === 'HIT') {
-        renderer.vfx.spawnBurst(ev.pos, 0xff9f1c, 10);
-        renderer.triggerShake(0.07);
+        renderer.vfx.spawnBurst(ev.pos, 0xff9f1c, 12, false);
+        renderer.vfx.spawnDust(state.fighters[ev.slot].pos, 3);
+        renderer.triggerShake(0.08);
       } else if (ev.type === 'COUNTER') {
-        renderer.vfx.spawnBurst(ev.pos, 0xff2a2a, 16);
-        renderer.triggerShake(0.14);
+        renderer.vfx.spawnBurst(ev.pos, 0xff2a2a, 18, false);
+        renderer.vfx.spawnDust(state.fighters[ev.slot].pos, 5);
+        renderer.triggerShake(0.15);
       } else if (ev.type === 'BLOCK') {
-        renderer.vfx.spawnBurst(ev.pos, 0x64dfdf, 7);
+        renderer.vfx.spawnBurst(ev.pos, 0x48cae4, 8, true);
       } else if (ev.type === 'BEAT_BONUS') {
         renderer.vfx.spawnBeatRing(ev.pos, 0xffd166);
       } else if (ev.type === 'KO') {
-        renderer.vfx.spawnBurst(ev.pos, 0xff2a2a, 24);
-        renderer.triggerShake(0.22);
+        renderer.vfx.spawnBurst(ev.pos, 0xff2a2a, 24, false);
+        renderer.vfx.spawnDust(state.fighters[ev.slot].pos, 8);
+        renderer.triggerShake(0.24);
       }
     }
     hud.update(state, state.events, renderer.debug.isVisible(), 1);

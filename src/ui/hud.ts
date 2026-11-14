@@ -7,6 +7,7 @@ export interface HudCallbacks {
   onModeChange: (mode: 'VS_CPU' | 'TRAINING' | 'VS_2P') => void;
   onToggleAuto: (slot: 0 | 1) => void;
   onToggleHitboxes: () => void;
+  onToggleRetro: () => void;
   onToggleCostume: (slot: 0 | 1) => void;
   onToggleTouch: () => void;
   onToggleMute: () => void;
@@ -17,6 +18,9 @@ export class GameHud {
   private root: HTMLElement;
   private hp0!: HTMLElement;
   private hp1!: HTMLElement;
+  private hpTrail0!: HTMLElement;
+  private hpTrail1!: HTMLElement;
+  private trailPct: [number, number] = [100, 100];
   private mal0!: HTMLElement;
   private mal1!: HTMLElement;
   private stance0!: HTMLElement;
@@ -46,12 +50,16 @@ export class GameHud {
             <span class="auto-badge hidden" id="auto-0">🤖 AUTO</span>
             <span class="pips" id="wins-0"></span>
           </div>
-          <div class="hp-track"><div class="hp-fill p1" id="hp-0"></div></div>
+          <div class="hp-track">
+            <div class="hp-trail p1" id="hp-trail-0"></div>
+            <div class="hp-fill p1" id="hp-0"></div>
+          </div>
           <div class="mal-track"><div class="mal-fill" id="mal-0"></div></div>
           <div class="combo-callout" id="combo-0"></div>
         </div>
 
         <div class="hud-center">
+          <div class="ko-emblem">K.O.</div>
           <div class="beat-ring" id="beat-ring">
             <span class="timer" id="timer">99</span>
           </div>
@@ -65,7 +73,10 @@ export class GameHud {
             <span class="stance-pill" id="stance-1">GINGA</span>
             <span class="name" id="name-1">FAÍSCA</span>
           </div>
-          <div class="hp-track"><div class="hp-fill p2" id="hp-1"></div></div>
+          <div class="hp-track">
+            <div class="hp-trail p2" id="hp-trail-1"></div>
+            <div class="hp-fill p2" id="hp-1"></div>
+          </div>
           <div class="mal-track"><div class="mal-fill" id="mal-1"></div></div>
           <div class="combo-callout" id="combo-1"></div>
         </div>
@@ -83,6 +94,7 @@ export class GameHud {
         <button data-act="auto-1" title="Toggle AI control for P2 (F2)">P2 Auto [F2]</button>
         <button data-act="maculele-0" title="Toggle P1 Maculelê Machete Outfit">P1 Maculelê ⚔️</button>
         <button data-act="hitboxes" title="Toggle Hitbox/Hurtbox View (F3)">Hitboxes [F3]</button>
+        <button data-act="retro" title="Toggle Retro SF2 CRT/Pixel Mode">📺 Retro CRT</button>
         <button data-act="touch" title="Toggle iPad/Touch On-Screen Controls">📱 Touch</button>
         <button data-act="moves" title="Move List (Tab)">Moves [Tab]</button>
         <button data-act="mute">🔊 Audio</button>
@@ -111,6 +123,8 @@ export class GameHud {
 
     this.hp0 = this.root.querySelector('#hp-0')!;
     this.hp1 = this.root.querySelector('#hp-1')!;
+    this.hpTrail0 = this.root.querySelector('#hp-trail-0')!;
+    this.hpTrail1 = this.root.querySelector('#hp-trail-1')!;
     this.mal0 = this.root.querySelector('#mal-0')!;
     this.mal1 = this.root.querySelector('#mal-1')!;
     this.stance0 = this.root.querySelector('#stance-0')!;
@@ -162,6 +176,7 @@ export class GameHud {
       else if (act === 'auto-1') cb.onToggleAuto(1);
       else if (act === 'maculele-0') cb.onToggleCostume(0);
       else if (act === 'hitboxes') { btn.classList.toggle('active'); cb.onToggleHitboxes(); }
+      else if (act === 'retro') { btn.classList.toggle('active'); cb.onToggleRetro(); }
       else if (act === 'touch') { btn.classList.toggle('active'); cb.onToggleTouch(); }
       else if (act === 'moves') this.toggleMoveList();
       else if (act === 'mute') cb.onToggleMute();
@@ -199,8 +214,16 @@ export class GameHud {
 
   update(state: MatchState, events: SimEvent[], showFrameInfo: boolean, dtFrames = 1): void {
     const [f0, f1] = state.fighters;
-    this.hp0.style.width = `${Math.max(0, (f0.health / f0.maxHealth) * 100)}%`;
-    this.hp1.style.width = `${Math.max(0, (f1.health / f1.maxHealth) * 100)}%`;
+    const p0 = Math.max(0, (f0.health / f0.maxHealth) * 100);
+    const p1 = Math.max(0, (f1.health / f1.maxHealth) * 100);
+    this.hp0.style.width = `${p0}%`;
+    this.hp1.style.width = `${p1}%`;
+    // SF2 delayed crimson damage trail
+    this.trailPct[0] = p0 > this.trailPct[0] ? p0 : Math.max(p0, this.trailPct[0] - 0.55 * dtFrames);
+    this.trailPct[1] = p1 > this.trailPct[1] ? p1 : Math.max(p1, this.trailPct[1] - 0.55 * dtFrames);
+    this.hpTrail0.style.width = `${this.trailPct[0]}%`;
+    this.hpTrail1.style.width = `${this.trailPct[1]}%`;
+
     this.mal0.style.width = `${f0.malicia}%`;
     this.mal1.style.width = `${f1.malicia}%`;
 
@@ -209,8 +232,8 @@ export class GameHud {
     this.root.querySelector('#name-0')!.textContent = charById(f0.charId).name.toUpperCase();
     this.root.querySelector('#name-1')!.textContent = charById(f1.charId).name.toUpperCase();
 
-    this.wins0.textContent = '●'.repeat(state.wins[0]) + '○'.repeat(Math.max(0, 2 - state.wins[0]));
-    this.wins1.textContent = '●'.repeat(state.wins[1]) + '○'.repeat(Math.max(0, 2 - state.wins[1]));
+    this.wins0.textContent = '★'.repeat(state.wins[0]) + '☆'.repeat(Math.max(0, 2 - state.wins[0]));
+    this.wins1.textContent = '★'.repeat(state.wins[1]) + '☆'.repeat(Math.max(0, 2 - state.wins[1]));
 
     this.timerEl.textContent = state.config.trainingMode
       ? '∞'
