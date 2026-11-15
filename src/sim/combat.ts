@@ -5,10 +5,14 @@ import { charById } from '../data/characters';
 import { MOVE_BY_ID, type HitWindow } from '../data/moves';
 import {
   capsulesOverlap,
+  capsuleSurfaceGap,
   extractActiveHitboxes,
+  extractAllBodyCapsules,
   extractHurtboxes,
+  fighterDistance,
   getHurtboxProfile,
   worldMidpoint,
+  type WorldCapsule,
 } from './collision';
 import type { FighterState, InputFrame, MatchState } from './state';
 
@@ -27,9 +31,132 @@ function canBlock(defender: FighterState, defInput: InputFrame, level: HitWindow
 }
 
 function crushesLevel(profile: ReturnType<typeof getHurtboxProfile>, level: HitWindow['level']): boolean {
+  if (profile === 'INVULN') return true;
   if (profile === 'CRUSH_HIGH' && level === 'HIGH') return true;
   if (profile === 'CRUSH_LOW' && level === 'LOW') return true;
   return false;
+}
+
+function closestCapsulePair(
+  hitCaps: WorldCapsule[],
+  bodyCaps: WorldCapsule[],
+): { minGap: number; midpoint: [number, number, number] } {
+  let minGap = Infinity;
+  let midpoint: [number, number, number] = [0, 1, 0];
+  for (const hc of hitCaps) {
+    for (const bc of bodyCaps) {
+      const gap = capsuleSurfaceGap(hc, bc);
+      if (gap < minGap) {
+        minGap = gap;
+        midpoint = worldMidpoint(hc, bc);
+      }
+    }
+  }
+  return { minGap, midpoint };
+}
+
+/**
+ * Cooperative "Play / Show" mode resolver: celebrates geometric near-misses and crushed evades
+ * with zero damage, zero hitstun/KO, and soft slip separation on accidental overlap.
+ */
+function resolveShowCombat(state: MatchState, fks: [FK, FK]): void {
+  const [f0, f1] = state.fighters;
+  const pairs: [FighterState, FighterState, FK, FK][] = [
+    [f0, f1, fks[0], fks[1]],
+    [f1, f0, fks[1], fks[0]],
+  ];
+
+  const nearBeat = Math.min(state.beatPhase, state.framesPerBeat - state.beatPhase) <= 6;
+
+  for (const [att, def, attFK, defFK] of pairs) {
+    const active = extractActiveHitboxes(att, attFK);
+    if (active.length === 0) continue;
+
+    const attMove = att.moveId ? MOVE_BY_ID[att.moveId] : null;
+    const defMove = def.moveId ? MOVE_BY_ID[def.moveId] : null;
+    const defProfile = getHurtboxProfile(def);
+    const hurtboxes = extractHurtboxes(def, defFK);
+    const bodyCaps = hurtboxes.length > 0 ? hurtboxes : extractAllBodyCapsules(defFK);
+    const dist = fighterDistance(att, def);
+    const defEvading =
+      def.mode === 'ATTACK' ||
+      def.mode === 'SHIFT' ||
+      def.stance !== 'GINGA' ||
+      defProfile !== 'NORMAL';
+
+    for (const { winIdx, win, capsules } of active) {
+      const crushed = crushesLevel(defProfile, win.level);
+      let overlapHit: WorldCapsule | null = null;
+      let overlapHurt: WorldCapsule | null = null;
+
+      if (!crushed) {
+        for (const hc of capsules) {
+          for (const uc of hurtboxes) {
+            if (capsulesOverlap(hc, uc)) {
+              overlapHit = hc;
+              overlapHurt = uc;
+              break;
+            }
+          }
+          if (overlapHit) break;
+        }
+      }
+
+      if (overlapHit && overlapHurt) {
+        // Soft zero-damage slip on accidental contact
+        att.moveHitMask |= 1 << winIdx;
+        state.harmony.grazes += 1;
+        state.harmony.streak = 0;
+        state.harmony.flow = Math.max(0, state.harmony.flow - 8);
+        state.harmony.lastPhrase = 'ESCORREGOU (NO DMG)';
+        state.harmony.phraseTimer = 45;
+
+        // Subtle lateral + push-apart glide so limbs unclip peacefully
+        def.pos[0] += att.facing[0] * 0.08 - att.facing[1] * 0.06;
+        def.pos[2] += att.facing[1] * 0.08 + att.facing[0] * 0.06;
+
+        state.events.push({
+          type: 'GRAZE',
+          slot: def.slot,
+          pos: worldMidpoint(overlapHit, overlapHurt),
+        });
+        continue;
+      }
+
+      // Check close geometric near-miss OR explicit Capoeira crush evasion within active exchange distance
+      const { minGap, midpoint } = closestCapsulePair(capsules, bodyCaps);
+      const isLastActiveFrame = att.moveFrame >= win.frames[1];
+      const cleanCloseMiss = minGap <= 0.58 && (defEvading || crushed);
+      const crushExchangeMiss = crushed && dist <= 2.35 && isLastActiveFrame;
+      const tailEvadeMiss = isLastActiveFrame && defEvading && minGap <= 0.85;
+
+      if (cleanCloseMiss || crushExchangeMiss || tailEvadeMiss) {
+        att.moveHitMask |= 1 << winIdx;
+        state.harmony.nearMisses += 1;
+        state.harmony.streak += 1;
+        state.harmony.bestStreak = Math.max(state.harmony.bestStreak, state.harmony.streak);
+        state.harmony.flow = clamp(state.harmony.flow + (nearBeat ? 18 : 12), 0, 100);
+        // After dodging cleanly, defender smoothly assumes next Pergunta call turn
+        state.harmony.callerSlot = def.slot;
+
+        const attLabel = attMove?.name ?? 'Ataque';
+        const defLabel = defMove ? defMove.name : def.stance;
+        state.harmony.lastPhrase = `${attLabel} ⇄ ${defLabel}`;
+        state.harmony.phraseTimer = 100;
+
+        def.malicia = clamp(def.malicia + 6, 0, 100);
+        att.malicia = clamp(att.malicia + 4, 0, 100);
+
+        state.events.push({
+          type: 'HARMONY',
+          slot: def.slot,
+          pos: midpoint,
+          value: state.harmony.streak,
+          label: defLabel,
+        });
+      }
+    }
+  }
 }
 
 export function resolveCombat(
@@ -37,6 +164,10 @@ export function resolveCombat(
   fks: [FK, FK],
   inputs: [InputFrame, InputFrame],
 ): void {
+  if (state.config.playMode === 'SHOW') {
+    resolveShowCombat(state, fks);
+    return;
+  }
   const [f0, f1] = state.fighters;
   const pairs: [FighterState, FighterState, FK, FK, InputFrame][] = [
     [f0, f1, fks[0], fks[1], inputs[1]],

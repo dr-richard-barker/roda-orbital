@@ -85,8 +85,33 @@ export function capsulesOverlap(a: WorldCapsule, b: WorldCapsule): boolean {
   return segSegDist2(a.a, a.b, b.a, b.b) <= r * r;
 }
 
-export function resolvePushboxes(a: FighterState, b: FighterState, arenaRadius: number): void {
-  const minSep = 0.62;
+/** Non-negative 3D surface separation (meters) between two bone capsules. */
+export function capsuleSurfaceGap(a: WorldCapsule, b: WorldCapsule): number {
+  const d = Math.sqrt(segSegDist2(a.a, a.b, b.a, b.b));
+  return Math.max(0, d - (a.radius + b.radius));
+}
+
+/** Extract all FK bone capsules without hurtbox crush/invuln filtering (for near-miss distance queries). */
+export function extractAllBodyCapsules(fk: FK): WorldCapsule[] {
+  const out: WorldCapsule[] = [];
+  for (let b = 0; b < BONES.length; b++) {
+    const i3 = b * 3;
+    out.push({
+      bone: BONES[b],
+      a: [fk.joints[i3], fk.joints[i3 + 1], fk.joints[i3 + 2]],
+      b: [fk.tips[i3], fk.tips[i3 + 1], fk.tips[i3 + 2]],
+      radius: fk.radii[b] * 1.15,
+    });
+  }
+  return out;
+}
+
+export function resolvePushboxes(
+  a: FighterState,
+  b: FighterState,
+  arenaRadius: number,
+  minSep = 0.62,
+): void {
   const dx = b.pos[0] - a.pos[0];
   const dz = b.pos[2] - a.pos[2];
   const dy = Math.abs(b.pos[1] - a.pos[1]);

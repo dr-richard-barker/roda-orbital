@@ -147,6 +147,25 @@ export class VfxSystem {
     this.rings.push({ mesh: m, life: 0, maxLife: 0.35 });
   }
 
+  /** Celebratory turquoise-gold Axé ring + rising sparkles for Play / Show near-misses. */
+  spawnHarmony(pos: Vec3): void {
+    this.spawnBeatRing(pos, 0x48cae4);
+    this.spawnBeatRing([pos[0], pos[1] + 0.16, pos[2]], 0xffd166);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x80ffdb, transparent: true, opacity: 1 });
+    for (let i = 0; i < 6; i++) {
+      const m = new THREE.Mesh(this.sparkGeo, mat.clone());
+      m.position.set(pos[0], pos[1], pos[2]);
+      const a = (i / 6) * Math.PI * 2;
+      this.group.add(m);
+      this.sparks.push({
+        mesh: m,
+        vel: new THREE.Vector3(Math.cos(a) * 1.9, 2.2 + (i % 2) * 0.9, Math.sin(a) * 1.9),
+        life: 0,
+        maxLife: 0.28,
+      });
+    }
+  }
+
   update(dt: number, cameraPos?: THREE.Vector3): void {
     for (let i = this.bursts.length - 1; i >= 0; i--) {
       const b = this.bursts[i];

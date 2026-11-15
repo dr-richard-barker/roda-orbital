@@ -1,10 +1,12 @@
 // DOM Fighting Game HUD, Move List overlay, and Mode/Autopilot/Costume controls.
 import { charById, ROSTER, type CostumeId } from '../data/characters';
 import { MOVES, type MoveCategory } from '../data/moves';
-import type { MatchState, SimEvent } from '../sim/state';
+import type { MatchState, PlayMode, SimEvent } from '../sim/state';
+
+export type HudMode = 'VS_CPU' | 'TRAINING' | 'VS_2P' | 'SHOW';
 
 export interface HudCallbacks {
-  onModeChange: (mode: 'VS_CPU' | 'TRAINING' | 'VS_2P') => void;
+  onModeChange: (mode: HudMode) => void;
   onSelectFighter: (slot: 0 | 1, charId: string) => void;
   onTryMove: (moveId: string) => void;
   onToggleAuto: (slot: 0 | 1) => void;
@@ -33,6 +35,9 @@ export class GameHud {
   private wins1!: HTMLElement;
   private timerEl!: HTMLElement;
   private beatRing!: HTMLElement;
+  private koEmblem!: HTMLElement;
+  private roundLabel!: HTMLElement;
+  private showPhraseEl!: HTMLElement;
   private bannerEl!: HTMLElement;
   private combo0!: HTMLElement;
   private combo1!: HTMLElement;
@@ -85,10 +90,12 @@ export class GameHud {
       </div>
 
       <div class="center-banner hidden" id="center-banner">GINGA!</div>
+      <div class="show-phrase hidden" id="show-phrase"></div>
       <div class="frame-bar hidden" id="frame-info"></div>
 
       <div class="hud-toolbar">
         <button data-act="vs-cpu" class="active">1P vs CPU</button>
+        <button data-act="show" title="Supportive Play / Show Duet (Synchronized Capoeira Dialogue)">🤝 Play / Show</button>
         <button data-act="training">Training</button>
         <button data-act="vs-2p">Local 2P</button>
         <span class="sep"></span>
@@ -103,6 +110,8 @@ export class GameHud {
         <button data-act="touch" title="Toggle iPad/Touch On-Screen Controls">📱 Touch</button>
         <button data-act="moves" title="Move List (Tab)">Moves (${MOVES.length}) [Tab]</button>
         <a class="hud-link" href="./moves.html" title="Open 3D Move Showcase &amp; Mudroljub / Minhoquinho Comparison">📖 Move Showcase</a>
+        <a class="hud-link" href="./tutorial.html" title="Read Controls, Modes &amp; Capoeira Play Tutorial">❓ How to Play</a>
+        <a class="hud-link" href="./history.html" title="Read the History &amp; Music of Capoeira">📜 History</a>
         <button data-act="mute">🔊 Audio</button>
         <button data-act="reset">↻ Restart</button>
       </div>
@@ -145,6 +154,9 @@ export class GameHud {
     this.wins1 = this.root.querySelector('#wins-1')!;
     this.timerEl = this.root.querySelector('#timer')!;
     this.beatRing = this.root.querySelector('#beat-ring')!;
+    this.koEmblem = this.root.querySelector('.ko-emblem')!;
+    this.roundLabel = this.root.querySelector('#round-label')!;
+    this.showPhraseEl = this.root.querySelector('#show-phrase')!;
     this.bannerEl = this.root.querySelector('#center-banner')!;
     this.combo0 = this.root.querySelector('#combo-0')!;
     this.combo1 = this.root.querySelector('#combo-1')!;
@@ -225,7 +237,7 @@ export class GameHud {
     this.root.querySelector('#close-moves')!.addEventListener('click', () => this.toggleMoveList());
 
     const setModeActive = (btn: Element) => {
-      this.root.querySelectorAll('[data-act="vs-cpu"],[data-act="training"],[data-act="vs-2p"]').forEach((b) =>
+      this.root.querySelectorAll('[data-act="vs-cpu"],[data-act="show"],[data-act="training"],[data-act="vs-2p"]').forEach((b) =>
         b.classList.remove('active'),
       );
       btn.classList.add('active');
@@ -236,6 +248,7 @@ export class GameHud {
       if (!btn) return;
       const act = btn.getAttribute('data-act');
       if (act === 'vs-cpu') { setModeActive(btn); cb.onModeChange('VS_CPU'); }
+      else if (act === 'show') { setModeActive(btn); cb.onModeChange('SHOW'); }
       else if (act === 'training') { setModeActive(btn); cb.onModeChange('TRAINING'); }
       else if (act === 'vs-2p') { setModeActive(btn); cb.onModeChange('VS_2P'); }
       else if (act === 'auto-0') cb.onToggleAuto(0);
@@ -259,9 +272,11 @@ export class GameHud {
     b.textContent = muted ? '🔇 Muted' : '🔊 Audio';
   }
 
-  setAutoBadges(a0: boolean, a1: boolean): void {
+  setAutoBadges(a0: boolean, a1: boolean, playMode: PlayMode = 'VERSUS'): void {
     this.auto0.classList.toggle('hidden', !a0);
     this.auto1.classList.toggle('hidden', !a1);
+    this.auto0.textContent = playMode === 'SHOW' ? '🤝 SHOW AI' : '🤖 AUTO';
+    this.auto1.textContent = playMode === 'SHOW' ? '🤝 PARTNER' : '🤖 CPU';
     this.root.querySelector('[data-act="auto-0"]')?.classList.toggle('active', a0);
     this.root.querySelector('[data-act="auto-1"]')?.classList.toggle('active', a1);
   }
@@ -284,8 +299,11 @@ export class GameHud {
     const n1El = this.root.querySelector('#name-1');
     if (n0El) n0El.textContent = charById(f0.charId).name.toUpperCase();
     if (n1El) n1El.textContent = charById(f1.charId).name.toUpperCase();
-    const p0 = Math.max(0, (f0.health / f0.maxHealth) * 100);
-    const p1 = Math.max(0, (f1.health / f1.maxHealth) * 100);
+    const isShow = state.config.playMode === 'SHOW';
+    this.root.classList.toggle('mode-show', isShow);
+
+    const p0 = isShow ? Math.max(8, state.harmony.flow) : Math.max(0, (f0.health / f0.maxHealth) * 100);
+    const p1 = isShow ? Math.max(8, state.harmony.flow) : Math.max(0, (f1.health / f1.maxHealth) * 100);
     this.hp0.style.width = `${p0}%`;
     this.hp1.style.width = `${p1}%`;
     // SF2 delayed crimson damage trail
@@ -299,18 +317,26 @@ export class GameHud {
 
     this.stance0.textContent = f0.stance;
     this.stance1.textContent = f1.stance;
-    this.root.querySelector('#name-0')!.textContent = charById(f0.charId).name.toUpperCase();
-    this.root.querySelector('#name-1')!.textContent = charById(f1.charId).name.toUpperCase();
 
-    this.wins0.textContent = '★'.repeat(state.wins[0]) + '☆'.repeat(Math.max(0, 2 - state.wins[0]));
-    this.wins1.textContent = '★'.repeat(state.wins[1]) + '☆'.repeat(Math.max(0, 2 - state.wins[1]));
+    if (isShow) {
+      this.wins0.textContent = state.harmony.streak > 0 ? `FLOW ×${state.harmony.streak}` : 'AXÉ';
+      this.wins1.textContent = state.harmony.bestStreak > 0 ? `BEST ×${state.harmony.bestStreak}` : 'RODA';
+    } else {
+      this.wins0.textContent = '★'.repeat(state.wins[0]) + '☆'.repeat(Math.max(0, 2 - state.wins[0]));
+      this.wins1.textContent = '★'.repeat(state.wins[1]) + '☆'.repeat(Math.max(0, 2 - state.wins[1]));
+    }
 
-    this.timerEl.textContent = state.config.trainingMode
-      ? '∞'
-      : String(Math.ceil(state.roundTimerFrames / 60)).padStart(2, '0');
-    this.root.querySelector('#round-label')!.textContent = state.config.trainingMode
-      ? 'TRAINING'
-      : `RODA ${state.round}`;
+    this.koEmblem.textContent = isShow ? 'AXÉ' : 'K.O.';
+    this.timerEl.textContent = isShow
+      ? '♪'
+      : state.config.trainingMode
+        ? '∞'
+        : String(Math.ceil(state.roundTimerFrames / 60)).padStart(2, '0');
+    this.roundLabel.textContent = isShow
+      ? 'PLAY / SHOW'
+      : state.config.trainingMode
+        ? 'TRAINING'
+        : `RODA ${state.round}`;
 
     // Pulsing berimbau ring
     const beatDist = Math.min(state.beatPhase, state.framesPerBeat - state.beatPhase);
@@ -319,16 +345,33 @@ export class GameHud {
     this.beatRing.style.transform = `scale(${pulse.toFixed(3)})`;
     this.beatRing.classList.toggle('on-beat', onBeat);
 
-    // Combo callouts (shown on the attacker's side, reading defender's comboCount)
-    this.combo0.textContent = f1.comboCount >= 2 ? `${f1.comboCount} HIT COMBO! (${f1.comboDamage})` : '';
-    this.combo1.textContent = f0.comboCount >= 2 ? `${f0.comboCount} HIT COMBO! (${f0.comboDamage})` : '';
+    // Combo callouts or Show phrase badge
+    if (isShow) {
+      this.combo0.textContent = state.harmony.nearMisses > 0 ? `${state.harmony.nearMisses} SYNC DODGES` : '';
+      this.combo1.textContent = !this.auto0.classList.contains('hidden') ? 'F1: JUMP IN' : '1P + PARTNER';
+      this.showPhraseEl.classList.remove('hidden');
+      if (state.harmony.lastPhrase && state.harmony.phraseTimer > 0) {
+        this.showPhraseEl.textContent = `🤝 ${state.harmony.lastPhrase.toUpperCase()} · STREAK ×${state.harmony.streak}`;
+      } else {
+        this.showPhraseEl.textContent =
+          '🤝 JOGAR NA RODA · SYNCHRONIZED DIALOGUE (F1 TO TAKE P1)';
+      }
+    } else {
+      this.showPhraseEl.classList.add('hidden');
+      this.combo0.textContent = f1.comboCount >= 2 ? `${f1.comboCount} HIT COMBO! (${f1.comboDamage})` : '';
+      this.combo1.textContent = f0.comboCount >= 2 ? `${f0.comboCount} HIT COMBO! (${f0.comboDamage})` : '';
+    }
 
     // Event banners
     for (const ev of events) {
       if (ev.type === 'ROUND_START') this.showBanner(`RODA ${state.round} — JOGA!`, 50);
       else if (ev.type === 'KO') this.showBanner('K.O.!', 85);
       else if (ev.type === 'COUNTER') this.showBanner('COUNTER HIT!', 35);
-      else if (ev.type === 'BEAT_BONUS') this.showBanner(`⚡ AXÉ SYNC! (${ev.label ?? ''})`, 32);
+      else if (ev.type === 'HARMONY' && (ev.value === 1 || (ev.value ?? 0) % 3 === 0)) {
+        this.showBanner(`🤝 ${ev.label?.toUpperCase() ?? 'AXÉ!'} ×${ev.value ?? 1}`, 34);
+      } else if (ev.type === 'BEAT_BONUS' && !isShow) {
+        this.showBanner(`⚡ AXÉ SYNC! (${ev.label ?? ''})`, 32);
+      }
     }
 
     if (state.roundPhase === 'MATCH_OVER') {

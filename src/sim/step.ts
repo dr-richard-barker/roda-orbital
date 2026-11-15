@@ -247,7 +247,27 @@ function stepFighter(state: MatchState, f: FighterState, opp: FighterState, inp:
   f.modeFrame += 1;
 
   // Handle stun / knockdown / KO states
-  if (f.mode === 'KO') {
+  const canShowOverride =
+    state.config.playMode === 'SHOW' &&
+    Boolean(inp.showMoveId) &&
+    state.roundPhase === 'FIGHT' &&
+    (f.mode === 'IDLE' ||
+      f.mode === 'WALK' ||
+      f.mode === 'SHIFT' ||
+      (f.mode === 'ATTACK' &&
+        f.moveId !== null &&
+        ((MOVE_BY_ID[f.moveId]?.hits.length === 0 && f.moveFrame >= 6) ||
+          f.moveFrame >= (MOVE_BY_ID[f.moveId]?.totalFrames ?? 30) - 3)));
+
+  const showMove =
+    canShowOverride && inp.showMoveId ? MOVE_BY_ID[inp.showMoveId] : undefined;
+
+  if (showMove) {
+    if (!showMove.from.includes(f.stance)) {
+      f.stance = showMove.from[0] ?? 'GINGA';
+    }
+    startMove(state, f, showMove, isOnDownbeat(state) ? 1 : 0);
+  } else if (f.mode === 'KO') {
     // stay down
   } else if (f.mode === 'HITSTUN' || f.mode === 'BLOCKSTUN') {
     f.stunFrames -= 1;
@@ -332,6 +352,9 @@ function stepFighter(state: MatchState, f: FighterState, opp: FighterState, inp:
         f.mode = 'IDLE';
         f.modeFrame = 0;
         f.moveId = null;
+        if (state.config.playMode === 'SHOW' && move.hits.length > 0) {
+          state.harmony.callerSlot = f.slot === 0 ? 1 : 0;
+        }
       }
     }
   }
@@ -420,8 +443,22 @@ export function step(state: MatchState, inputs: [InputFrame, InputFrame]): Match
     state.barBeat = (state.barBeat + 1) % 4;
   }
 
-  // Training mode passive health regen when idle
-  if (state.config.trainingMode) {
+  // Training & Show mode non-elimination maintenance
+  if (state.config.playMode === 'SHOW') {
+    for (const f of state.fighters) {
+      f.health = f.maxHealth;
+      f.redHealth = f.maxHealth;
+    }
+    if (state.harmony.phraseTimer > 0) state.harmony.phraseTimer -= 1;
+    // Periodically swap call leadership if both partners are circling peacefully in Ginga
+    if (
+      state.frame % 150 === 0 &&
+      state.fighters[0].mode !== 'ATTACK' &&
+      state.fighters[1].mode !== 'ATTACK'
+    ) {
+      state.harmony.callerSlot = state.harmony.callerSlot === 0 ? 1 : 0;
+    }
+  } else if (state.config.trainingMode) {
     for (const f of state.fighters) {
       if (f.mode === 'IDLE' && f.health < f.maxHealth) {
         f.health = Math.min(f.maxHealth, f.health + 2);
@@ -459,8 +496,13 @@ export function step(state: MatchState, inputs: [InputFrame, InputFrame]): Match
   stepFighter(state, state.fighters[0], state.fighters[1], inputs[0]);
   stepFighter(state, state.fighters[1], state.fighters[0], inputs[1]);
 
-  // Pushboxes & arena clamp
-  resolvePushboxes(state.fighters[0], state.fighters[1], state.config.arenaRadius);
+  // Pushboxes & arena clamp (keep wider graceful showcase breathing room in SHOW mode)
+  resolvePushboxes(
+    state.fighters[0],
+    state.fighters[1],
+    state.config.arenaRadius,
+    state.config.playMode === 'SHOW' ? 0.95 : 0.62,
+  );
 
   // Compute FK for both fighters using exact same poses as renderer
   for (let i = 0; i < 2; i++) {
@@ -473,8 +515,8 @@ export function step(state: MatchState, inputs: [InputFrame, InputFrame]): Match
   if (state.roundPhase === 'FIGHT') {
     resolveCombat(state, fks, inputs);
 
-    // Round timer & KO check
-    if (!state.config.trainingMode) {
+    // Round timer & KO check (Versus only)
+    if (!state.config.trainingMode && state.config.playMode === 'VERSUS') {
       state.roundTimerFrames = Math.max(0, state.roundTimerFrames - 1);
       const ko0 = state.fighters[0].health <= 0;
       const ko1 = state.fighters[1].health <= 0;

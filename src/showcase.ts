@@ -9,6 +9,7 @@ import {
   type ComparisonRow,
 } from './data/moveCatalog';
 import { MOVE_BY_ID, MOVES, type MoveCategory, type MoveDef } from './data/moves';
+import { getShowcasePairReply } from './data/rodaDialogues';
 import { GameRenderer } from './render/scene';
 import { createMatchState, type InputFrame, type MatchState } from './sim/state';
 import { step, triggerShowcaseAction } from './sim/step';
@@ -36,6 +37,7 @@ const fighterSelect = document.getElementById('sc-fighter') as HTMLSelectElement
 const gravitySelect = document.getElementById('sc-gravity') as HTMLSelectElement;
 const btnMaculele = document.getElementById('sc-maculele') as HTMLButtonElement;
 const btnDummy = document.getElementById('sc-dummy') as HTMLButtonElement;
+const btnPair = document.getElementById('sc-pair') as HTMLButtonElement;
 const btnHitboxes = document.getElementById('sc-hitboxes') as HTMLButtonElement;
 const btnRetro = document.getElementById('sc-retro') as HTMLButtonElement;
 const btnCamReset = document.getElementById('sc-cam-reset') as HTMLButtonElement;
@@ -92,6 +94,10 @@ let selectedMoveId = 'ginga';
 let selectedFighter = 'faisca';
 let selectedCostume: CostumeId = 'default';
 let dummyEnabled = false;
+let pairReplyEnabled = false;
+let pairReplyTriggered = false;
+let pairReplyMoveId: string | null = null;
+let pairReplyTriggerFrame = 2;
 let animSource: SourceFilter = 'ALL';
 let animCat: 'All' | MoveCategory = 'All';
 
@@ -118,21 +124,64 @@ renderer.setFighterVisible(1, dummyEnabled);
 
 // Keep fighters cleanly centered on the roda platform for inspection
 function resetPositions(): void {
-  state.fighters[0].pos = [-0.65, 0, 0];
+  const halfSep = pairReplyEnabled && dummyEnabled ? 0.82 : 0.85;
+  state.fighters[0].pos = [pairReplyEnabled && dummyEnabled ? -halfSep : -0.65, 0, 0];
   state.fighters[0].vel = [0, 0, 0];
   state.fighters[0].facing = [1, 0];
-  state.fighters[1].pos = [1.05, 0, 0];
+  state.fighters[1].pos = [pairReplyEnabled && dummyEnabled ? halfSep : 1.05, 0, 0];
   state.fighters[1].vel = [0, 0, 0];
   state.fighters[1].facing = [-1, 0];
+  state.fighters[1].stance = 'GINGA';
+  state.fighters[1].mode = 'IDLE';
+  state.fighters[1].moveId = null;
   state.fighters[1].health = state.fighters[1].maxHealth;
   state.fighters[0].health = state.fighters[0].maxHealth;
 }
 
+function setupPairReply(): void {
+  pairReplyTriggered = false;
+  pairReplyMoveId = null;
+  pairReplyTriggerFrame = 2;
+  if (!pairReplyEnabled || !dummyEnabled) return;
+
+  const p1Move = MOVE_BY_ID[selectedMoveId];
+  const reply = getShowcasePairReply(selectedMoveId);
+  if (!p1Move || !reply) return;
+
+  const replyMove = MOVE_BY_ID[reply.moveId];
+  if (!replyMove) return;
+
+  // If P1 move is a pure evasion/floreio, swap roles cleanly on P2 or time dummy's swing around P1's dodge
+  const firstHit = p1Move.hits[0];
+  if (firstHit) {
+    const midHit = Math.round((firstHit.frames[0] + firstHit.frames[1]) * 0.5);
+    const crush = replyMove.hurtboxOverrides?.[0]?.frames ?? [3, replyMove.totalFrames - 5];
+    const midCrush = Math.round((crush[0] + crush[1]) * 0.5);
+    pairReplyMoveId = replyMove.id;
+    pairReplyTriggerFrame = Math.max(1, midHit - midCrush);
+  } else {
+    const p1Crush = p1Move.hurtboxOverrides?.[0]?.frames ?? [3, p1Move.totalFrames - 5];
+    const midCrush = Math.round((p1Crush[0] + p1Crush[1]) * 0.5);
+    const replyHit = replyMove.hits[0];
+    const midHit = replyHit ? Math.round((replyHit.frames[0] + replyHit.frames[1]) * 0.5) : 12;
+    if (midHit >= midCrush) {
+      // Kick starts slightly earlier if needed, otherwise trigger immediately
+      pairReplyMoveId = replyMove.id;
+      pairReplyTriggerFrame = 1;
+    } else {
+      pairReplyMoveId = replyMove.id;
+      pairReplyTriggerFrame = Math.max(1, midCrush - midHit);
+    }
+  }
+}
+
 function playSelectedMove(moveId = selectedMoveId): void {
   selectedMoveId = MOVE_BY_ID[moveId] ? moveId : MOVES[0].id;
+  state.config.playMode = pairReplyEnabled && dummyEnabled ? 'SHOW' : 'TRAINING';
   resetPositions();
   if (!dummyEnabled) state.fighters[0].pos = [0, 0, 0];
   triggerShowcaseAction(state, 0, selectedMoveId);
+  setupPairReply();
   prevState = structuredClone(state);
   const m = MOVE_BY_ID[selectedMoveId]!;
   scrubber.max = String(m.totalFrames);
@@ -141,9 +190,26 @@ function playSelectedMove(moveId = selectedMoveId): void {
   highlightSelectedListItem();
 }
 
+function maybeTriggerPairReply(): void {
+  if (
+    pairReplyEnabled &&
+    dummyEnabled &&
+    !pairReplyTriggered &&
+    pairReplyMoveId &&
+    state.fighters[0].modeFrame >= pairReplyTriggerFrame
+  ) {
+    pairReplyTriggered = true;
+    triggerShowcaseAction(state, 1, pairReplyMoveId);
+  }
+}
+
 function stepShowcaseOneFrame(): void {
   prevState = structuredClone(state);
+  maybeTriggerPairReply();
   step(state, [NEUTRAL_IN, NEUTRAL_IN]);
+  for (const ev of state.events) {
+    if (ev.type === 'HARMONY') renderer.vfx.spawnHarmony(ev.pos);
+  }
   // Prevent arena drift far from showcase center
   if (Math.hypot(state.fighters[0].pos[0], state.fighters[0].pos[2]) > 2.2) {
     resetPositions();
@@ -154,11 +220,14 @@ function stepShowcaseOneFrame(): void {
 
 function scrubToFrame(targetFrame: number): void {
   const m = MOVE_BY_ID[selectedMoveId]!;
+  state.config.playMode = pairReplyEnabled && dummyEnabled ? 'SHOW' : 'TRAINING';
   resetPositions();
   if (!dummyEnabled) state.fighters[0].pos = [0, 0, 0];
   triggerShowcaseAction(state, 0, m.id);
+  setupPairReply();
   for (let i = 0; i < targetFrame; i++) {
     prevState = structuredClone(state);
+    maybeTriggerPairReply();
     step(state, [NEUTRAL_IN, NEUTRAL_IN]);
   }
   if (targetFrame === 0) prevState = structuredClone(state);
@@ -169,9 +238,13 @@ function syncScrubberUI(): void {
   const f0 = state.fighters[0];
   const m = MOVE_BY_ID[selectedMoveId]!;
   const curF = f0.mode === 'ATTACK' ? f0.moveFrame : m.totalFrames;
+  const pairSuffix =
+    pairReplyEnabled && dummyEnabled && pairReplyMoveId && MOVE_BY_ID[pairReplyMoveId]
+      ? ` ⇄ ${MOVE_BY_ID[pairReplyMoveId].name.toUpperCase()}`
+      : '';
   scrubber.value = String(Math.min(m.totalFrames, curF));
   frameReadout.textContent = `${Math.min(m.totalFrames, curF)} / ${m.totalFrames}f`;
-  overlayPill.textContent = `${m.name.toUpperCase()} · ${charById(selectedFighter).name.toUpperCase()} · ${curF}f`;
+  overlayPill.textContent = `${m.name.toUpperCase()}${pairSuffix} · ${charById(selectedFighter).name.toUpperCase()} · ${curF}f`;
 }
 
 function highlightSelectedListItem(): void {
@@ -419,8 +492,23 @@ btnMaculele.addEventListener('click', () => {
 
 btnDummy.addEventListener('click', () => {
   dummyEnabled = !dummyEnabled;
+  if (!dummyEnabled) {
+    pairReplyEnabled = false;
+    btnPair.classList.remove('active');
+  }
   btnDummy.classList.toggle('active', dummyEnabled);
   renderer.setFighterVisible(1, dummyEnabled);
+  playSelectedMove();
+});
+
+btnPair.addEventListener('click', () => {
+  pairReplyEnabled = !pairReplyEnabled;
+  btnPair.classList.toggle('active', pairReplyEnabled);
+  if (pairReplyEnabled && !dummyEnabled) {
+    dummyEnabled = true;
+    btnDummy.classList.add('active');
+    renderer.setFighterVisible(1, true);
+  }
   playSelectedMove();
 });
 

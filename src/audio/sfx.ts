@@ -98,6 +98,17 @@ export class AudioEngine {
         case 'BEAT_BONUS':
           this.playTone(587, 880, 0.16, 'sine', 0.14); // agogô chime
           break;
+        case 'HARMONY': {
+          // Ascending Agogô harmonic + soft Roda palmas handclap celebrating near-miss synchrony
+          const stepIdx = Math.min(ev.value ?? 1, 8);
+          const baseFreq = 523.25 * Math.pow(1.06, stepIdx);
+          this.playTone(baseFreq, baseFreq * 1.25, 0.16, 'triangle', 0.13);
+          this.playNoise(0.055, 2900, 0.08);
+          break;
+        }
+        case 'GRAZE':
+          this.playNoise(0.04, 750, 0.05);
+          break;
         case 'KO':
           this.playTone(140, 42, 0.55, 'sawtooth', 0.3);
           this.playNoise(0.35, 900, 0.25);

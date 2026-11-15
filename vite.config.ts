@@ -15,6 +15,8 @@ export default defineConfig({
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         moves: fileURLToPath(new URL('./moves.html', import.meta.url)),
+        tutorial: fileURLToPath(new URL('./tutorial.html', import.meta.url)),
+        history: fileURLToPath(new URL('./history.html', import.meta.url)),
       },
     },
   },

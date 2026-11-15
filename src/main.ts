@@ -1,11 +1,12 @@
 // Entry point: wires 60 Hz deterministic sim, Three.js renderer, Input/AI, Audio, and HUD.
 import './style.css';
 import { createAiMemory, stepAi } from './ai/cpu';
+import { createShowAiMemory, stepShowAi } from './ai/showAi';
 import { AudioEngine } from './audio/sfx';
 import { InputManager } from './input/manager';
 import { TouchControls } from './input/touch';
 import { GameRenderer } from './render/scene';
-import { createMatchState, type InputFrame, type MatchState } from './sim/state';
+import { createMatchState, type InputFrame, type MatchState, type PlayMode } from './sim/state';
 import { step, triggerShowcaseAction } from './sim/step';
 import { GameHud } from './ui/hud';
 
@@ -24,12 +25,16 @@ let prevState: MatchState = structuredClone(state);
 
 const autoEnabled: [boolean, boolean] = [false, true]; // 1P vs CPU by default
 const aiMem = [createAiMemory(0x11223344), createAiMemory(0x55667788)];
+const showAiMem = [createShowAiMemory(0x11223344), createShowAiMemory(0x55667788)];
 
 const renderer = new GameRenderer(app, state);
 const audio = new AudioEngine();
 const touch = new TouchControls(app);
 
-function restartMatch(trainingMode = state.config.trainingMode): void {
+function restartMatch(
+  trainingMode = state.config.trainingMode,
+  playMode: PlayMode = state.config.playMode ?? (trainingMode ? 'TRAINING' : 'VERSUS'),
+): void {
   state = createMatchState({
     p1Char: selectedChars[0],
     p2Char: selectedChars[1],
@@ -39,7 +44,10 @@ function restartMatch(trainingMode = state.config.trainingMode): void {
     p2Costume: state.fighters[1].costume,
     gravityScale: 1.0,
     trainingMode,
+    playMode,
   });
+  showAiMem[0] = createShowAiMemory(0x11223344);
+  showAiMem[1] = createShowAiMemory(0x55667788);
   renderer.rebuildFighter(0, state.fighters[0].charId, 0, state.fighters[0].costume);
   renderer.rebuildFighter(1, state.fighters[1].charId, 1, state.fighters[1].costume);
   prevState = structuredClone(state);
@@ -51,17 +59,22 @@ const hud = new GameHud(app, {
     if (mode === 'VS_CPU') {
       autoEnabled[0] = false;
       autoEnabled[1] = true;
-      restartMatch(false);
+      restartMatch(false, 'VERSUS');
+    } else if (mode === 'SHOW') {
+      autoEnabled[0] = true;
+      autoEnabled[1] = true;
+      restartMatch(false, 'SHOW');
+      hud.showBanner('🤝 JOGAR NA RODA! (PLAY / SHOW)', 55);
     } else if (mode === 'TRAINING') {
       autoEnabled[0] = false;
       autoEnabled[1] = false;
-      restartMatch(true);
+      restartMatch(true, 'TRAINING');
     } else {
       autoEnabled[0] = false;
       autoEnabled[1] = false;
-      restartMatch(false);
+      restartMatch(false, 'VERSUS');
     }
-    hud.setAutoBadges(autoEnabled[0], autoEnabled[1]);
+    hud.setAutoBadges(autoEnabled[0], autoEnabled[1], state.config.playMode);
   },
   onSelectFighter(slot, charId) {
     audio.unlock();
@@ -77,7 +90,7 @@ const hud = new GameHud(app, {
   onToggleAuto(slot) {
     audio.unlock();
     autoEnabled[slot] = !autoEnabled[slot];
-    hud.setAutoBadges(autoEnabled[0], autoEnabled[1]);
+    hud.setAutoBadges(autoEnabled[0], autoEnabled[1], state.config.playMode);
   },
   onToggleHitboxes() {
     renderer.debug.setVisible(!renderer.debug.isVisible());
@@ -107,16 +120,16 @@ const hud = new GameHud(app, {
   },
 });
 
-hud.setAutoBadges(autoEnabled[0], autoEnabled[1]);
+hud.setAutoBadges(autoEnabled[0], autoEnabled[1], state.config.playMode);
 
 const input = new InputManager((code) => {
   audio.unlock();
   if (code === 'F1') {
     autoEnabled[0] = !autoEnabled[0];
-    hud.setAutoBadges(autoEnabled[0], autoEnabled[1]);
+    hud.setAutoBadges(autoEnabled[0], autoEnabled[1], state.config.playMode);
   } else if (code === 'F2') {
     autoEnabled[1] = !autoEnabled[1];
-    hud.setAutoBadges(autoEnabled[0], autoEnabled[1]);
+    hud.setAutoBadges(autoEnabled[0], autoEnabled[1], state.config.playMode);
   } else if (code === 'F3') {
     renderer.debug.setVisible(!renderer.debug.isVisible());
   } else if (code === 'Tab') {
@@ -141,11 +154,16 @@ function frame(now: number): void {
 
   while (acc >= DT) {
     prevState = structuredClone(state);
+    const inShow = state.config.playMode === 'SHOW';
     const in0: InputFrame = autoEnabled[0]
-      ? stepAi(state, 0, aiMem[0], 'MEDIUM')
+      ? inShow
+        ? stepShowAi(state, 0, showAiMem[0])
+        : stepAi(state, 0, aiMem[0], 'MEDIUM')
       : input.poll(0, state.fighters[0], camRx, camRz, touch.isVisible() ? touch : undefined);
     const in1: InputFrame = autoEnabled[1]
-      ? stepAi(state, 1, aiMem[1], 'MEDIUM')
+      ? inShow
+        ? stepShowAi(state, 1, showAiMem[1])
+        : stepAi(state, 1, aiMem[1], 'MEDIUM')
       : input.poll(1, state.fighters[1], camRx, camRz);
 
     step(state, [in0, in1]);
@@ -164,6 +182,8 @@ function frame(now: number): void {
         renderer.triggerShake(0.15);
       } else if (ev.type === 'BLOCK') {
         renderer.vfx.spawnBurst(ev.pos, 0x48cae4, 8, true);
+      } else if (ev.type === 'HARMONY') {
+        renderer.vfx.spawnHarmony(ev.pos);
       } else if (ev.type === 'BEAT_BONUS') {
         renderer.vfx.spawnBeatRing(ev.pos, 0xffd166);
       } else if (ev.type === 'KO') {

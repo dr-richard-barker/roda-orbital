@@ -12,12 +12,16 @@ export const BTN_RK = 8;
 export const BTN_STANCE = 16;
 export const BTN_TAG = 32;
 
+export type PlayMode = 'VERSUS' | 'TRAINING' | 'SHOW';
+
 /** Single-frame player input in relative (facing-independent) numpad notation. */
 export interface InputFrame {
   /** Numpad 1..9 relative to facing (6 = toward opponent, 4 = away, 8 = up/sidestep, 2 = down/crouch, 5 = neutral). */
   dir: number;
   /** Bitmask of currently held buttons. */
   buttons: number;
+  /** Optional choreographed/supportive move trigger honored strictly when MatchConfig.playMode === 'SHOW'. */
+  showMoveId?: string;
 }
 
 export const EMPTY_INPUT: InputFrame = { dir: 5, buttons: 0 };
@@ -87,11 +91,22 @@ export interface FighterState {
 }
 
 export interface SimEvent {
-  type: 'HIT' | 'BLOCK' | 'COUNTER' | 'BEAT_BONUS' | 'KO' | 'ROUND_START' | 'STANCE';
+  type: 'HIT' | 'BLOCK' | 'COUNTER' | 'BEAT_BONUS' | 'KO' | 'ROUND_START' | 'STANCE' | 'HARMONY' | 'GRAZE';
   slot: 0 | 1;
   pos: Vec3;
   value?: number;
   label?: string;
+}
+
+export interface HarmonyState {
+  flow: number; // 0..100 synchronized Play / Show meter
+  streak: number;
+  bestStreak: number;
+  nearMisses: number;
+  grazes: number;
+  callerSlot: 0 | 1;
+  lastPhrase: string;
+  phraseTimer: number;
 }
 
 export interface MatchConfig {
@@ -105,6 +120,7 @@ export interface MatchConfig {
   arenaRadius: number;
   rhythmSyncEnabled: boolean;
   trainingMode: boolean;
+  playMode?: PlayMode;
 }
 
 export interface MatchState {
@@ -127,6 +143,9 @@ export interface MatchState {
   framesPerBeat: number;
   beatPhase: number; // 0 .. framesPerBeat-1
   barBeat: number;   // 0..3
+
+  // Cooperative Show / Play Mode telemetry
+  harmony: HarmonyState;
 
   // Transient events emitted this frame (cleared each step)
   events: SimEvent[];
@@ -170,7 +189,23 @@ function makeFighter(slot: 0 | 1, charId: string, paletteIdx: number, costume: C
   };
 }
 
+function makeInitialHarmony(): HarmonyState {
+  return {
+    flow: 0,
+    streak: 0,
+    bestStreak: 0,
+    nearMisses: 0,
+    grazes: 0,
+    callerSlot: 0,
+    lastPhrase: '',
+    phraseTimer: 0,
+  };
+}
+
 export function createMatchState(cfg: Partial<MatchConfig> = {}): MatchState {
+  const playMode: PlayMode = cfg.playMode ?? (cfg.trainingMode ? 'TRAINING' : 'VERSUS');
+  const trainingMode = playMode === 'TRAINING' ? true : (cfg.trainingMode ?? false);
+  const nonElim = playMode !== 'VERSUS';
   const config: MatchConfig = {
     p1Char: cfg.p1Char ?? 'faisca',
     p2Char: cfg.p2Char ?? 'faisca',
@@ -181,7 +216,8 @@ export function createMatchState(cfg: Partial<MatchConfig> = {}): MatchState {
     gravityScale: cfg.gravityScale ?? 1.0,
     arenaRadius: cfg.arenaRadius ?? 6.5,
     rhythmSyncEnabled: cfg.rhythmSyncEnabled ?? true,
-    trainingMode: cfg.trainingMode ?? false,
+    trainingMode,
+    playMode,
   };
   return {
     frame: 0,
@@ -193,8 +229,8 @@ export function createMatchState(cfg: Partial<MatchConfig> = {}): MatchState {
     ],
     hitstop: 0,
     round: 1,
-    roundPhase: config.trainingMode ? 'FIGHT' : 'INTRO',
-    phaseTimer: config.trainingMode ? 0 : 60,
+    roundPhase: nonElim ? 'FIGHT' : 'INTRO',
+    phaseTimer: nonElim ? 0 : 60,
     roundTimerFrames: 99 * 60,
     wins: [0, 0],
     winner: -1,
@@ -202,20 +238,23 @@ export function createMatchState(cfg: Partial<MatchConfig> = {}): MatchState {
     framesPerBeat: Math.round(3600 / 105), // 34 frames (~105.9 BPM)
     beatPhase: 0,
     barBeat: 0,
+    harmony: makeInitialHarmony(),
     events: [],
   };
 }
 
 export function resetRound(s: MatchState): void {
+  const nonElim = s.config.playMode !== 'VERSUS';
   for (let i = 0; i < 2; i++) {
     const f = s.fighters[i];
     const fresh = makeFighter(f.slot, f.charId, f.paletteIdx, f.costume);
     s.fighters[i] = fresh;
   }
   s.hitstop = 0;
-  s.roundPhase = s.config.trainingMode ? 'FIGHT' : 'INTRO';
-  s.phaseTimer = s.config.trainingMode ? 0 : 60;
+  s.roundPhase = nonElim ? 'FIGHT' : 'INTRO';
+  s.phaseTimer = nonElim ? 0 : 60;
   s.roundTimerFrames = 99 * 60;
+  s.harmony = makeInitialHarmony();
 }
 
 export function hashMatchState(s: MatchState): number {
@@ -232,6 +271,11 @@ export function hashMatchState(s: MatchState): number {
   h.i32(s.winner);
   h.i32(s.beatPhase);
   h.i32(s.barBeat);
+  h.i32(s.harmony.streak);
+  h.i32(s.harmony.nearMisses);
+  h.i32(s.harmony.grazes);
+  h.i32(s.harmony.callerSlot);
+  h.f64(s.harmony.flow);
   for (const f of s.fighters) {
     h.str(f.charId);
     h.f64(f.pos[0]); h.f64(f.pos[1]); h.f64(f.pos[2]);

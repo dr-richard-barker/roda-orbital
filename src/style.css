@@ -15,6 +15,7 @@ html, body, #app {
 #hud-root {
   position: fixed;
   inset: 0;
+  z-index: 20;
   pointer-events: none;
   display: flex;
   flex-direction: column;
@@ -195,6 +196,38 @@ html, body, #app {
   transform: skewX(-8deg);
 }
 
+/* Supportive Play / Show Mode HUD transform */
+.mode-show .ko-emblem {
+  background: linear-gradient(180deg, #00b4d8, #0077b6);
+  color: #ffffff;
+  border-color: #80ffdb;
+}
+.mode-show .hp-track {
+  background: rgba(12, 24, 38, 0.85);
+  border-color: #80ffdb;
+}
+.mode-show .hp-trail {
+  background: rgba(72, 202, 228, 0.35);
+}
+.mode-show .hp-fill {
+  background: linear-gradient(90deg, #48cae4 0%, #80ffdb 50%, #ffd166 100%);
+  transition: width 120ms ease-out;
+}
+.show-phrase {
+  align-self: center;
+  margin-top: auto;
+  margin-bottom: 6px;
+  background: rgba(10, 22, 34, 0.86);
+  border: 1.5px solid #48cae4;
+  color: #90f1ef;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  box-shadow: 0 4px 14px rgba(0, 180, 216, 0.25);
+}
+
 /* Optional Retro CPS-1 Arcade CRT & Crisp Pixel Mode */
 .retro-canvas {
   width: 100% !important;
@@ -230,10 +263,14 @@ body.crt-scanlines::after {
 }
 
 .hud-toolbar {
+  position: relative;
+  z-index: 15;
   pointer-events: auto;
   align-self: center;
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
+  max-width: min(1180px, calc(100vw - 24px));
   gap: 6px;
   background: rgba(16, 10, 26, 0.78);
   backdrop-filter: blur(8px);
@@ -403,7 +440,7 @@ body.crt-scanlines::after {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  padding: 20px 28px calc(74px + env(safe-area-inset-bottom));
+  padding: 20px 28px calc(108px + env(safe-area-inset-bottom));
   z-index: 10;
 }
 
