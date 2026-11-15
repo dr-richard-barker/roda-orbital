@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#140c1f" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='28' fill='%23c84e31' stroke='%23ffd166' stroke-width='5'/><text x='32' y='42' font-size='30' text-anchor='middle' fill='%23ffd166'>⚡</text></svg>" />
+    <title>Roda Orbital — 3D Capoeira Move Showcase &amp; Library Comparison</title>
+  </head>
+  <body>
+    <div class="showcase-shell">
+      <header class="site-header">
+        <div class="brand-group">
+          <h1>RODA ORBITAL · MOVE SHOWCASE</h1>
+          <p class="brand-subtitle">
+            Every Capoeira technique animated in 3D across all 10 fighters, audited 1-to-1 against Mudroljub &amp; Minhoquinho.
+          </p>
+        </div>
+
+        <div class="coverage-badges" id="coverage-badges" aria-label="Move library coverage"></div>
+
+        <nav class="primary-nav" aria-label="Primary navigation">
+          <a class="nav-link" href="./index.html">⚔️ Play Game</a>
+          <button type="button" class="nav-link" id="tab-animator" aria-current="page">🕺 3D Move Animator</button>
+          <button type="button" class="nav-link" id="tab-matrix">📊 Comparison Matrix</button>
+        </nav>
+      </header>
+
+      <main class="main-content">
+        <!-- View 1: 3D Move Animator -->
+        <section class="animator-view" id="view-animator" aria-label="Interactive 3D Capoeira Move Animator">
+          <aside class="move-sidebar" aria-label="Move selector">
+            <div class="sidebar-filters">
+              <label class="sr-only" for="anim-search">Filter moves</label>
+              <input
+                id="anim-search"
+                type="search"
+                placeholder="Search any move (e.g. Aú, Queda, Armada)..."
+              />
+              <div class="source-filter-row" id="anim-source-filters">
+                <button type="button" class="chip active" data-src="ALL">All</button>
+                <button type="button" class="chip" data-src="MUDROJUB">Mudroljub</button>
+                <button type="button" class="chip" data-src="MINHOQUINHO">Minhoquinho</button>
+                <button type="button" class="chip" data-src="ORIGINAL">Roda Orbital ★</button>
+              </div>
+              <div class="category-chips" id="anim-cat-filters"></div>
+            </div>
+            <div class="move-count-bar" id="anim-count-bar">Loading moves…</div>
+            <ul class="move-list" id="anim-move-list" role="listbox" aria-label="Capoeira techniques"></ul>
+          </aside>
+
+          <div class="stage-workspace">
+            <div class="stage-controls-bar">
+              <div class="control-group">
+                <label class="ctrl-label" for="sc-fighter">Fighter</label>
+                <select id="sc-fighter"></select>
+              </div>
+              <div class="control-group">
+                <label class="ctrl-label" for="sc-gravity">Gravity</label>
+                <select id="sc-gravity">
+                  <option value="1.0">Earth (1.0g)</option>
+                  <option value="0.38">Mars (0.38g)</option>
+                  <option value="0.165">Lunar (0.165g)</option>
+                </select>
+              </div>
+              <div class="toggle-group">
+                <button type="button" class="ctrl-btn" id="sc-maculele">⚔️ Maculelê</button>
+                <button type="button" class="ctrl-btn" id="sc-dummy">🥊 Dummy</button>
+                <button type="button" class="ctrl-btn" id="sc-hitboxes">📐 Hitboxes</button>
+                <button type="button" class="ctrl-btn" id="sc-retro">📺 Retro CRT</button>
+                <button type="button" class="ctrl-btn" id="sc-cam-reset">↺ Orbit Reset</button>
+              </div>
+            </div>
+
+            <div class="stage-canvas-frame">
+              <div class="stage-canvas-mount" id="showcase-canvas"></div>
+              <div class="stage-overlay-pill" id="stage-overlay-pill">GINGA · Frame 0</div>
+              <p class="orbit-hint">Drag canvas to orbit 360° · Scroll / pinch to zoom</p>
+            </div>
+
+            <div class="transport-bar">
+              <button type="button" class="ctrl-btn accent" id="sc-play-pause">⏸ Pause</button>
+              <button type="button" class="ctrl-btn" id="sc-replay">⟲ Replay</button>
+              <button type="button" class="ctrl-btn" id="sc-tour">🔀 Auto-Tour</button>
+              <div class="scrubber-wrap">
+                <label class="sr-only" for="sc-scrubber">Frame scrubber</label>
+                <input id="sc-scrubber" type="range" min="0" max="40" value="0" />
+                <span class="frame-readout" id="sc-frame-readout">0 / 30f</span>
+              </div>
+              <div class="control-group">
+                <label class="ctrl-label" for="sc-speed">Speed</label>
+                <select id="sc-speed">
+                  <option value="1">1.0x</option>
+                  <option value="0.5">0.5x Slow</option>
+                  <option value="0.25">0.25x Study</option>
+                </select>
+              </div>
+            </div>
+
+            <article class="move-details-card" id="move-details-card" aria-live="polite"></article>
+          </div>
+        </section>
+
+        <!-- View 2: Library Comparison Matrix -->
+        <section class="matrix-view hidden" id="view-matrix" aria-label="Mudroljub and Minhoquinho move comparison">
+          <div class="matrix-toolbar">
+            <div>
+              <h2 id="matrix-heading">Reference Library Parity Audit</h2>
+              <p class="matrix-subtitle">
+                Side-by-side comparison across Mudroljub’s catalog (90 active + 3 archived HTML entries),
+                Minhoquinho’s 52-video movement library, and Roda Orbital’s playable 3D animations.
+              </p>
+            </div>
+            <div class="matrix-filters">
+              <label class="sr-only" for="matrix-search">Search comparison matrix</label>
+              <input id="matrix-search" type="search" placeholder="Filter comparison rows…" />
+              <select id="matrix-source-filter" aria-label="Filter by source library">
+                <option value="ALL">All Moves</option>
+                <option value="MUDROJUB">In Mudroljub List</option>
+                <option value="MINHOQUINHO">In Minhoquinho Library</option>
+                <option value="BOTH">In Both External Libraries</option>
+                <option value="ORIGINAL">Roda Orbital Originals ★</option>
+              </select>
+              <select id="matrix-cat-filter" aria-label="Filter by category">
+                <option value="ALL">All Categories</option>
+              </select>
+            </div>
+          </div>
+
+          <div
+            class="table-wrapper"
+            tabindex="0"
+            role="region"
+            aria-labelledby="matrix-heading"
+          >
+            <table class="comparison-table">
+              <thead>
+                <tr>
+                  <th scope="col">Move (Roda Orbital)</th>
+                  <th scope="col">Category &amp; Command</th>
+                  <th scope="col">Mudroljub Catalog</th>
+                  <th scope="col">Minhoquinho Video</th>
+                  <th scope="col">Coverage</th>
+                  <th scope="col">3D Preview</th>
+                </tr>
+              </thead>
+              <tbody id="matrix-tbody"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/src/showcase.ts"></script>
+  </body>
+</html>

@@ -30,6 +30,7 @@ for (let i = 0; i <= LUT_SIZE; i++) SIN_LUT[i] = taylorSin((i / LUT_SIZE) * TAU)
 export function dsin(a: number): number {
   let t = (a / TAU) * LUT_SIZE;
   t = t - Math.floor(t / LUT_SIZE) * LUT_SIZE; // wrap into [0, LUT_SIZE)
+  if (t >= LUT_SIZE || t < 0) t = 0; // guard IEEE-754 rounding when a ~ -1e-16
   const i = Math.floor(t);
   const f = t - i;
   return SIN_LUT[i] + (SIN_LUT[i + 1] - SIN_LUT[i]) * f;

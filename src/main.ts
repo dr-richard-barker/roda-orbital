@@ -6,14 +6,15 @@ import { InputManager } from './input/manager';
 import { TouchControls } from './input/touch';
 import { GameRenderer } from './render/scene';
 import { createMatchState, type InputFrame, type MatchState } from './sim/state';
-import { step } from './sim/step';
+import { step, triggerShowcaseAction } from './sim/step';
 import { GameHud } from './ui/hud';
 
 const app = document.getElementById('app')!;
+const selectedChars: [string, string] = ['faisca', 'faisca'];
 
 let state: MatchState = createMatchState({
-  p1Char: 'faisca',
-  p2Char: 'faisca',
+  p1Char: selectedChars[0],
+  p2Char: selectedChars[1],
   p1Palette: 0,
   p2Palette: 1,
   gravityScale: 1.0,
@@ -30,8 +31,8 @@ const touch = new TouchControls(app);
 
 function restartMatch(trainingMode = state.config.trainingMode): void {
   state = createMatchState({
-    p1Char: 'faisca',
-    p2Char: 'faisca',
+    p1Char: selectedChars[0],
+    p2Char: selectedChars[1],
     p1Palette: 0,
     p2Palette: 1,
     p1Costume: state.fighters[0].costume,
@@ -39,6 +40,8 @@ function restartMatch(trainingMode = state.config.trainingMode): void {
     gravityScale: 1.0,
     trainingMode,
   });
+  renderer.rebuildFighter(0, state.fighters[0].charId, 0, state.fighters[0].costume);
+  renderer.rebuildFighter(1, state.fighters[1].charId, 1, state.fighters[1].costume);
   prevState = structuredClone(state);
 }
 
@@ -59,6 +62,17 @@ const hud = new GameHud(app, {
       restartMatch(false);
     }
     hud.setAutoBadges(autoEnabled[0], autoEnabled[1]);
+  },
+  onSelectFighter(slot, charId) {
+    audio.unlock();
+    selectedChars[slot] = charId;
+    state.fighters[slot].charId = charId;
+    prevState.fighters[slot].charId = charId;
+    renderer.rebuildFighter(slot, charId, state.fighters[slot].paletteIdx, state.fighters[slot].costume);
+  },
+  onTryMove(moveId) {
+    audio.unlock();
+    triggerShowcaseAction(state, 0, moveId);
   },
   onToggleAuto(slot) {
     audio.unlock();

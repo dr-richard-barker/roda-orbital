@@ -241,7 +241,9 @@ body.crt-scanlines::after {
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.16);
 }
-.hud-toolbar button {
+.hud-toolbar button,
+.hud-toolbar .hud-select,
+.hud-toolbar .hud-link {
   background: rgba(255, 255, 255, 0.1);
   color: #f6f2ea;
   border: 1px solid rgba(255, 255, 255, 0.18);
@@ -250,8 +252,22 @@ body.crt-scanlines::after {
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
-.hud-toolbar button:hover { background: rgba(255, 255, 255, 0.22); }
+.hud-toolbar .hud-select option {
+  background: #1c1328;
+  color: #f6f2ea;
+}
+.hud-toolbar .hud-link {
+  background: rgba(244, 162, 97, 0.18);
+  border-color: rgba(255, 209, 102, 0.45);
+  color: #ffd166;
+}
+.hud-toolbar button:hover,
+.hud-toolbar .hud-link:hover { background: rgba(255, 255, 255, 0.22); }
 .hud-toolbar button.active {
   background: #f4a261;
   color: #16101c;
@@ -307,14 +323,49 @@ body.crt-scanlines::after {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
 }
+.move-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+#move-search {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f6f2ea;
+  font-size: 0.85rem;
+}
+.move-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.move-chip {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e6deee;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.move-chip.active {
+  background: #ffd166;
+  color: #16101c;
+  border-color: #ffd166;
+}
 .move-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
   gap: 8px;
 }
 .move-row {
   display: grid;
-  grid-template-columns: 1.3fr 0.7fr 0.8fr 1.2fr;
+  grid-template-columns: 1.35fr 0.65fr 0.75fr 1fr auto;
   gap: 6px;
   align-items: center;
   padding: 7px 10px;
@@ -330,6 +381,17 @@ body.crt-scanlines::after {
   color: #ffd166;
 }
 .m-meta { font-size: 0.74rem; text-align: right; opacity: 0.85; }
+.m-try {
+  background: rgba(244, 162, 97, 0.22);
+  color: #ffd166;
+  border: 1px solid rgba(255, 209, 102, 0.45);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.m-try:hover { background: #ffd166; color: #16101c; }
 
 .hidden { display: none !important; }
 

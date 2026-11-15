@@ -25,7 +25,7 @@ export class DebugOverlay {
     return this.group.visible;
   }
 
-  update(fighters: [FighterState, FighterState], fks: [FK, FK]): void {
+  update(fighters: FighterState[], fks: FK[]): void {
     if (!this.group.visible) return;
     let idx = 0;
 
@@ -53,9 +53,10 @@ export class DebugOverlay {
       mesh.scale.set(c.radius, Math.max(c.radius, len * 0.5 + c.radius), c.radius);
     };
 
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < fighters.length; i++) {
       const f = fighters[i];
       const fk = fks[i];
+      if (!f || !fk) continue;
       for (const uc of extractHurtboxes(f, fk)) placeCap(uc, this.hurtMat);
       for (const win of extractActiveHitboxes(f, fk)) {
         for (const hc of win.capsules) placeCap(hc, this.hitMat);

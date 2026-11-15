@@ -77,14 +77,37 @@ function pushInput(f: FighterState, inp: InputFrame): void {
   const pressed = inp.buttons & ~f.prevButtons;
   f.prevButtons = inp.buttons;
   f.inputBuf.unshift({ dir: inp.dir, pressed, held: inp.buttons });
-  if (f.inputBuf.length > 16) f.inputBuf.length = 16;
+  if (f.inputBuf.length > 24) f.inputBuf.length = 24;
 }
 
-function hasRecentMotion(buf: BufferedInput[], seq: number[], maxWindow = 12): boolean {
-  let idx = seq.length - 1;
+function dirMatches(actual: number, expected: number): boolean {
+  if (actual === expected) return true;
+  if (expected === 6) return actual === 3 || actual === 9;
+  if (expected === 4) return actual === 1 || actual === 7;
+  if (expected === 2) return actual === 1 || actual === 3;
+  if (expected === 8) return actual === 7 || actual === 9;
+  return false;
+}
+
+function hasRecentMotion(buf: BufferedInput[], seq: number[], maxWindow = 20): boolean {
   const lim = Math.min(buf.length, maxWindow);
+  if (seq.length === 2 && seq[0] === seq[1]) {
+    // Double-tap requires two separate taps separated by a non-matching direction.
+    const d = seq[0];
+    let phase = 0; // 0: find second tap, 1: find gap, 2: find first tap
+    for (let i = 0; i < lim; i++) {
+      const m = dirMatches(buf[i].dir, d);
+      if (phase === 0 && m) phase = 1;
+      else if (phase === 1 && !m) phase = 2;
+      else if (phase === 2 && m) return true;
+    }
+    return false;
+  }
+  const lenientEnds = seq.length === 2;
+  let idx = seq.length - 1;
   for (let i = 0; i < lim; i++) {
-    if (buf[i].dir === seq[idx]) {
+    const matched = lenientEnds ? dirMatches(buf[i].dir, seq[idx]) : buf[i].dir === seq[idx];
+    if (matched) {
       idx--;
       if (idx < 0) return true;
     }
@@ -92,9 +115,15 @@ function hasRecentMotion(buf: BufferedInput[], seq: number[], maxWindow = 12): b
   return false;
 }
 
+const BTN_BY_NAME: Record<string, number> = {
+  LH: BTN_LH,
+  RH: BTN_RH,
+  LK: BTN_LK,
+  RK: BTN_RK,
+};
+
 function matchMoveInput(buf: BufferedInput[], token: string): boolean {
   if (buf.length === 0) return false;
-  // Check newly pressed buttons in last 4 frames (buffer window)
   const checkWindow = Math.min(4, buf.length);
   const hasPress = (mask: number): boolean => {
     for (let i = 0; i < checkWindow; i++) {
@@ -110,26 +139,41 @@ function matchMoveInput(buf: BufferedInput[], token: string): boolean {
   };
 
   const curDir = buf[0].dir;
-  switch (token) {
-    case 'LH+RH': return hasComboPress(BTN_LH | BTN_RH);
-    case '236RK': return hasPress(BTN_RK) && hasRecentMotion(buf, [2, 3, 6], 14);
-    case '236LK': return hasPress(BTN_LK) && hasRecentMotion(buf, [2, 3, 6], 14);
-    case '6RK': return hasPress(BTN_RK) && (curDir === 6 || curDir === 3 || curDir === 9);
-    case '6LK': return hasPress(BTN_LK) && (curDir === 6 || curDir === 3 || curDir === 9);
-    case '2RK': return hasPress(BTN_RK) && (curDir === 2 || curDir === 1 || curDir === 3);
-    case 'LH': return hasPress(BTN_LH);
-    case 'RH': return hasPress(BTN_RH);
-    case 'LK': return hasPress(BTN_LK);
-    case 'RK': return hasPress(BTN_RK);
-    case 'STANCE': return hasPress(BTN_STANCE);
-    case 'STANCE_HSP': return hasPress(BTN_STANCE) && (curDir === 6 || curDir === 8 || curDir === 5);
-    case 'STANCE_GINGA': return hasPress(BTN_STANCE);
-    default: return false;
+  if (token === 'STANCE') return hasPress(BTN_STANCE);
+  if (token === 'STANCE_HSP') return hasPress(BTN_STANCE) && (curDir === 6 || curDir === 8 || curDir === 5);
+  if (token === 'STANCE_GINGA') return hasPress(BTN_STANCE);
+
+  const btnStart = token.search(/(LH|RH|LK|RK)/);
+  if (btnStart < 0) return false;
+  const dirPart = token.slice(0, btnStart);
+  const btnPart = token.slice(btnStart);
+
+  const parts = btnPart.split('+');
+  let btnMask = 0;
+  for (const p of parts) {
+    const m = BTN_BY_NAME[p];
+    if (!m) return false;
+    btnMask |= m;
   }
+  const btnOk = parts.length > 1 ? hasComboPress(btnMask) : hasPress(btnMask);
+  if (!btnOk) return false;
+
+  if (dirPart.length === 0) return true;
+  if (dirPart.length === 1) return dirMatches(curDir, Number(dirPart));
+  const seq = dirPart.split('').map(Number);
+  return hasRecentMotion(buf, seq, 22);
 }
 
-// Order moves so more specific motions (236RK, 6RK, 2RK, LH+RH) are checked before plain buttons (RK, LK).
-const MOVE_PRIORITY: MoveDef[] = [...MOVES].sort((a, b) => b.input.length - a.input.length);
+// Order moves so longer motions and diagonals + chords beat simpler cardinal/single-button bindings.
+function tokenSpecificity(token: string): number {
+  const btnStart = token.search(/(LH|RH|LK|RK|STANCE)/);
+  const dirPart = btnStart >= 0 ? token.slice(0, btnStart) : '';
+  const isDiagonal = dirPart.length === 1 && (dirPart === '1' || dirPart === '3' || dirPart === '7' || dirPart === '9') ? 1 : 0;
+  const chordCount = token.includes('+') ? 2 : 1;
+  return dirPart.length * 100 + isDiagonal * 10 + chordCount * 2;
+}
+
+const MOVE_PRIORITY: MoveDef[] = [...MOVES].sort((a, b) => tokenSpecificity(b.input) - tokenSpecificity(a.input));
 
 function pickMoveForFighter(f: FighterState): MoveDef | null {
   for (const m of MOVE_PRIORITY) {
@@ -453,4 +497,27 @@ export function computeFighterFK(f: FighterState, globalFrame: number, outFK: FK
   const p = emptyPose();
   evaluateFighterPose(f, p, globalFrame);
   return computeFK(p, getSkel(f.charId), f.pos, f.facing[0], f.facing[1], outFK);
+}
+
+/** Immediately execute any move or stance on a fighter (for Training Try-Move & 3D Move Showcase). */
+export function triggerShowcaseAction(state: MatchState, slot: 0 | 1, actionId: string): boolean {
+  const f = state.fighters[slot];
+  if (!f) return false;
+  if (actionId === 'GINGA' || actionId === 'HSP' || actionId === 'RLX') {
+    f.stance = actionId;
+    f.mode = 'IDLE';
+    f.modeFrame = 0;
+    f.moveId = null;
+    f.moveFrame = 0;
+    f.vel = [0, 0, 0];
+    f.pos[1] = 0;
+    return true;
+  }
+  const move = MOVE_BY_ID[actionId];
+  if (!move) return false;
+  f.stance = move.from[0] ?? 'GINGA';
+  f.vel = [0, 0, 0];
+  f.pos[1] = 0;
+  startMove(state, f, move, 0);
+  return true;
 }

@@ -38,6 +38,9 @@ try {
   page.on('console', (m) => {
     if (m.type() === 'error') errors.push(`console.error: ${m.text()}`);
   });
+  page.on('response', (res) => {
+    if (res.status() >= 400) errors.push(`http ${res.status()}: ${res.url()}`);
+  });
 
   await page.goto('http://localhost:4173/', { waitUntil: 'networkidle0' });
   await new Promise((r) => setTimeout(r, 1500));
@@ -55,6 +58,23 @@ try {
   await page.click('button[data-act="retro"]');
   await new Promise((r) => setTimeout(r, 800));
   await page.screenshot({ path: path.join(OUT, '03-retro-crt.png') });
+
+  // Move Showcase 3D Animator page (Meia-Lua de Compasso with Hitboxes & Dummy)
+  await page.goto('http://localhost:4173/moves.html?move=meia_lua_compasso', { waitUntil: 'networkidle0' });
+  await page.click('#sc-hitboxes');
+  await page.click('#sc-dummy');
+  await new Promise((r) => setTimeout(r, 900));
+  await page.screenshot({ path: path.join(OUT, '04-showcase-animator.png') });
+
+  // Switch to Mudroljub / Minhoquinho Comparison Matrix tab
+  await page.click('#tab-matrix');
+  await new Promise((r) => setTimeout(r, 400));
+  await page.screenshot({ path: path.join(OUT, '05-showcase-matrix.png') });
+
+  // Narrow mobile viewport check for container-query responsive card matrix
+  await page.setViewport({ width: 390, height: 844 });
+  await new Promise((r) => setTimeout(r, 400));
+  await page.screenshot({ path: path.join(OUT, '06-showcase-mobile.png') });
 
   console.log('Screenshots saved to shots/. Errors:', errors.length);
   if (errors.length) {

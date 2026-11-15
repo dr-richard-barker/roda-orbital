@@ -41,10 +41,20 @@ export interface CancelRule {
 }
 
 export type HurtboxProfile = 'NORMAL' | 'CRUSH_HIGH' | 'CRUSH_LOW' | 'INVULN';
+export type MoveCategory =
+  | 'Base & Stances'
+  | 'Cartwheels'
+  | 'Kicks'
+  | 'Evasions & Floor'
+  | 'Sweeps & Takedowns'
+  | 'Acrobatics';
 
 export interface MoveDef {
   id: string;
   name: string;
+  english?: string;
+  description?: string;
+  category?: MoveCategory;
   input: string; // display & parser token (e.g. 'LK', '6RK', '236RK', 'STANCE')
   from: Stance[];
   totalFrames: number;
@@ -57,7 +67,7 @@ export interface MoveDef {
   tags?: ('LAUNCHER' | 'SPIN' | 'FLOREIO' | 'THROW')[];
 }
 
-export const MOVES: MoveDef[] = [
+export const CORE_MOVES: MoveDef[] = [
   // ---- GINGA (Neutral) Moves ----
   {
     id: 'ponteira',
@@ -414,7 +424,7 @@ export const MOVES: MoveDef[] = [
     id: 'rasteira',
     name: 'Rasteira (Sweep)',
     input: 'RK',
-    from: ['RLX', 'GINGA'],
+    from: ['RLX'],
     totalFrames: 28,
     poseId: 'rasteira',
     hurtboxOverrides: [{ frames: [3, 20], profile: 'CRUSH_HIGH' }],
@@ -468,7 +478,7 @@ export const MOVES: MoveDef[] = [
     id: 'cabecada',
     name: 'Cabeçada',
     input: 'LH',
-    from: ['RLX', 'GINGA'],
+    from: ['RLX'],
     totalFrames: 26,
     poseId: 'cabecada',
     hurtboxOverrides: [{ frames: [4, 15], profile: 'CRUSH_HIGH' }],
@@ -507,6 +517,106 @@ export const MOVES: MoveDef[] = [
     rootMotion: [{ frames: [2, 18], vel: [3.2, 0, 0] }],
     tags: ['FLOREIO'],
   },
+];
+
+import { EXTRA_MOVES } from './moves_extra';
+
+const CORE_META: Record<string, { category: MoveCategory; english: string; description: string }> = {
+  ponteira: {
+    category: 'Kicks',
+    english: 'Fast Front Snap Kick',
+    description: 'Whip-fast upright snap thrust with ball of foot designed to interrupt startup frames.',
+  },
+  galopante: {
+    category: 'Kicks',
+    english: 'Open-Palm Ridge Slap',
+    description: 'Traditional Capoeira upright palm slap rushing forward along guard height.',
+  },
+  bencao: {
+    category: 'Kicks',
+    english: 'Blessing Front Push Kick',
+    description: 'Drive-forward sole push kick slamming chest/sternum away across the Roda.',
+  },
+  martelo: {
+    category: 'Kicks',
+    english: 'Hammer Roundhouse Kick',
+    description: 'Snap roundhouse chambered across waist height striking ribs or temple with instep.',
+  },
+  queixada: {
+    category: 'Kicks',
+    english: 'Jawbone Outside Crescent',
+    description: 'Cross-stepped outside-to-inside sweeping arc targeting jaw and high guard.',
+  },
+  armada: {
+    category: 'Kicks',
+    english: 'Spinning Heel Crescent',
+    description: 'Full 360-degree back-pivot whip sweeping the trailing heel wide across head height.',
+  },
+  meia_lua_compasso: {
+    category: 'Kicks',
+    english: 'Half-Moon Compass Sweep',
+    description: 'Iconic Capoeira signature: plant both hands low and whip a straight heel in a deadly 360° arc.',
+  },
+  au_batido: {
+    category: 'Cartwheels',
+    english: 'Cartwheel Thrust Launcher',
+    description: 'Inverted one-hand cartwheel kicking the top leg skyward as an anti-air / tag launcher.',
+  },
+  parafuso: {
+    category: 'Acrobatics',
+    english: 'Corkscrew Spiral Double Kick',
+    description: 'Rising double-kick aerial spiral launching defenders into lunar/zero-G juggle height.',
+  },
+  au: {
+    category: 'Cartwheels',
+    english: 'Capoeira Side Cartwheel',
+    description: 'Classic inverted wheel passing between palms while keeping eyes on opponent through the gap.',
+  },
+  vingativa: {
+    category: 'Sweeps & Takedowns',
+    english: 'Vindictive Chest-and-Leg Takedown',
+    description: 'Close-range forearm smash jamming ribs while behind leg locks opponent ankle.',
+  },
+  helicoptero: {
+    category: 'Acrobatics',
+    english: 'Inverted Rotor Blade Kick',
+    description: 'Propeller-like double leg windmill spun horizontally atop planted Bananeira hands.',
+  },
+  piao_mao: {
+    category: 'Cartwheels',
+    english: 'Handstand Pirouette Spin',
+    description: 'Spins 360 degrees vertically balanced on hands while clipping high guards.',
+  },
+  rasteira: {
+    category: 'Sweeps & Takedowns',
+    english: 'Low Ankle Hook Sweep',
+    description: 'Drops hip weight completely onto one braced palm while the outstretched foot yanks the planted ankle.',
+  },
+  chapa: {
+    category: 'Kicks',
+    english: 'Floor Piston Push Kick',
+    description: 'High-crushing upward sole thrust fired violently out of crouched Negativa.',
+  },
+  cabecada: {
+    category: 'Kicks',
+    english: 'Charging Torso Headbutt',
+    description: 'Explosive close-range crown charge driving upward through high punches from low guard.',
+  },
+  role: {
+    category: 'Evasions & Floor',
+    english: 'Low Ground Pivot Roll',
+    description: 'Smooth low circular pivot keeping eyes fixed on opponent while recovering cleanly into Ginga.',
+  },
+};
+
+export const MOVES: MoveDef[] = [
+  ...CORE_MOVES.map((m) => ({
+    ...m,
+    category: CORE_META[m.id]?.category ?? 'Base & Stances',
+    english: CORE_META[m.id]?.english ?? m.name,
+    description: CORE_META[m.id]?.description ?? '',
+  })),
+  ...EXTRA_MOVES,
 ];
 
 export const MOVE_BY_ID: Record<string, MoveDef> = Object.fromEntries(MOVES.map((m) => [m.id, m]));

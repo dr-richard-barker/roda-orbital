@@ -124,14 +124,20 @@ export class GameRenderer {
   }
 
   rebuildFighter(slot: 0 | 1, charId: string, paletteIdx: number, costume: CostumeId): void {
+    const wasVisible = this.rigs[slot].root.visible;
     this.scene.remove(this.rigs[slot].root);
     this.rigs[slot].dispose();
     this.rigs[slot] = buildMannequin(charById(charId), paletteIdx, costume);
+    this.rigs[slot].root.visible = wasVisible;
     this.scene.add(this.rigs[slot].root);
   }
 
   setCostume(slot: 0 | 1, costume: CostumeId): void {
     this.rigs[slot].setCostume(costume);
+  }
+
+  setFighterVisible(slot: 0 | 1, visible: boolean): void {
+    this.rigs[slot].root.visible = visible;
   }
 
   getCamRight(): [number, number] {
@@ -185,12 +191,19 @@ export class GameRenderer {
     }
   }
 
-  draw(prev: MatchState, curr: MatchState, alpha: number, dtReal: number): void {
+  draw(
+    prev: MatchState,
+    curr: MatchState,
+    alpha: number,
+    dtReal: number,
+    cameraOrbit?: { yaw: number; pitch: number; dist: number; focusSlot?: 0 | 'mid' },
+  ): void {
     this.elapsedSec += dtReal;
 
     for (let i = 0; i < 2; i++) {
       const pf = prev.fighters[i];
       const cf = curr.fighters[i];
+      if (!this.rigs[i].root.visible) continue;
       const def = charById(cf.charId);
       const skel = scaleSkeleton(def.body);
 
@@ -248,17 +261,35 @@ export class GameRenderer {
     const shakeY = (Math.random() - 0.5) * this.camShake;
     this.camShake *= 0.82;
 
-    const targetCamPos = new THREE.Vector3(
-      midX + px * camDist + shakeX,
-      midY + 0.58 + shakeY,
-      midZ + pz * camDist,
-    );
-    this.camera.position.lerp(targetCamPos, 0.16);
-    this.camera.lookAt(midX, midY, midZ);
+    if (cameraOrbit) {
+      const focusP = cameraOrbit.focusSlot === 0 ? p0 : [midX, midY - 0.96, midZ];
+      const fx = focusP[0];
+      const fy = focusP[1] + 0.92;
+      const fz = focusP[2];
+      const cosP = Math.cos(cameraOrbit.pitch);
+      const target = new THREE.Vector3(
+        fx + Math.sin(cameraOrbit.yaw) * cosP * cameraOrbit.dist + shakeX,
+        fy + Math.sin(cameraOrbit.pitch) * cameraOrbit.dist + shakeY,
+        fz + Math.cos(cameraOrbit.yaw) * cosP * cameraOrbit.dist,
+      );
+      this.camera.position.lerp(target, 0.28);
+      this.camera.lookAt(fx, fy, fz);
+    } else {
+      const targetCamPos = new THREE.Vector3(
+        midX + px * camDist + shakeX,
+        midY + 0.58 + shakeY,
+        midZ + pz * camDist,
+      );
+      this.camera.position.lerp(targetCamPos, 0.16);
+      this.camera.lookAt(midX, midY, midZ);
+    }
 
     this.arena.updateBeat(curr.beatPhase / curr.framesPerBeat);
     this.vfx.update(dtReal, this.camera.position);
-    this.debug.update(curr.fighters, this.fks);
+    this.debug.update(
+      this.rigs[1].root.visible ? curr.fighters : [curr.fighters[0]],
+      this.rigs[1].root.visible ? this.fks : [this.fks[0]],
+    );
 
     this.renderer.render(this.scene, this.camera);
   }

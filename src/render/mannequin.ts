@@ -336,6 +336,33 @@ export function buildMannequin(def: CharacterDef, paletteIdx = 0, costume: Costu
           dr.rotation.x = 0.35;
           bg.add(dr);
         }
+      } else if (def.hair === 'short') {
+        const crop = new THREE.Mesh(new THREE.SphereGeometry(sb.radius * 1.07, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.56), hairMat);
+        crop.position.set(0, 0.135, -0.01);
+        addOutline(crop, 1.06);
+        bg.add(crop);
+      } else if (def.hair === 'braids') {
+        const crown = new THREE.Mesh(new THREE.SphereGeometry(sb.radius * 1.06, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.52), hairMat);
+        crown.position.set(0, 0.138, 0);
+        bg.add(crown);
+        for (const side of [-1, 1]) {
+          const braid = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.014, 0.22, 6), hairMat);
+          braid.position.set(side * 0.085, 0.06, -0.065);
+          braid.rotation.set(0.28, 0, side * 0.18);
+          addOutline(braid, 1.06);
+          bg.add(braid);
+        }
+      } else if (def.hair === 'helmet') {
+        const dome = new THREE.Mesh(new THREE.SphereGeometry(sb.radius * 1.18, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.62), accentMat);
+        dome.position.set(0, 0.145, 0);
+        addOutline(dome, 1.05);
+        bg.add(dome);
+        const visor = new THREE.Mesh(
+          new THREE.BoxGeometry(0.19, 0.055, 0.11),
+          new THREE.MeshBasicMaterial({ color: 0x38bdf8 }),
+        );
+        visor.position.set(0, 0.135, 0.095);
+        bg.add(visor);
       }
     } else if (id === 'upperArmL' || id === 'upperArmR') {
       // Sculpted deltoid shoulder pauldron + bicep taper

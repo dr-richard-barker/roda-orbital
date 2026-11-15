@@ -1,10 +1,12 @@
 // DOM Fighting Game HUD, Move List overlay, and Mode/Autopilot/Costume controls.
-import { charById, type CostumeId } from '../data/characters';
-import { MOVES } from '../data/moves';
+import { charById, ROSTER, type CostumeId } from '../data/characters';
+import { MOVES, type MoveCategory } from '../data/moves';
 import type { MatchState, SimEvent } from '../sim/state';
 
 export interface HudCallbacks {
   onModeChange: (mode: 'VS_CPU' | 'TRAINING' | 'VS_2P') => void;
+  onSelectFighter: (slot: 0 | 1, charId: string) => void;
+  onTryMove: (moveId: string) => void;
   onToggleAuto: (slot: 0 | 1) => void;
   onToggleHitboxes: () => void;
   onToggleRetro: () => void;
@@ -90,13 +92,17 @@ export class GameHud {
         <button data-act="training">Training</button>
         <button data-act="vs-2p">Local 2P</button>
         <span class="sep"></span>
+        <select class="hud-select" id="p1-char-select" aria-label="P1 Fighter">${ROSTER.map(
+          (c) => `<option value="${c.id}">P1: ${c.name}</option>`,
+        ).join('')}</select>
         <button data-act="auto-0" title="Toggle AI control for P1 (F1)">P1 Auto [F1]</button>
         <button data-act="auto-1" title="Toggle AI control for P2 (F2)">P2 Auto [F2]</button>
         <button data-act="maculele-0" title="Toggle P1 Maculelê Machete Outfit">P1 Maculelê ⚔️</button>
         <button data-act="hitboxes" title="Toggle Hitbox/Hurtbox View (F3)">Hitboxes [F3]</button>
         <button data-act="retro" title="Toggle Retro SF2 CRT/Pixel Mode">📺 Retro CRT</button>
         <button data-act="touch" title="Toggle iPad/Touch On-Screen Controls">📱 Touch</button>
-        <button data-act="moves" title="Move List (Tab)">Moves [Tab]</button>
+        <button data-act="moves" title="Move List (Tab)">Moves (${MOVES.length}) [Tab]</button>
+        <a class="hud-link" href="./moves.html" title="Open 3D Move Showcase &amp; Mudroljub / Minhoquinho Comparison">📖 Move Showcase</a>
         <button data-act="mute">🔊 Audio</button>
         <button data-act="reset">↻ Restart</button>
       </div>
@@ -104,7 +110,7 @@ export class GameHud {
       <div class="move-modal hidden" id="move-modal">
         <div class="move-card">
           <div class="move-head">
-            <h2>RODA ORBITAL — CAPOEIRA COMMAND LIST</h2>
+            <h2>RODA ORBITAL — CAPOEIRA COMMAND LIST (${MOVES.length} MOVES)</h2>
             <button id="close-moves">✕</button>
           </div>
           <p class="controls-summary">
@@ -115,6 +121,10 @@ export class GameHud {
             <b>Throw:</b> U+I &nbsp;|&nbsp;
             <b>Rhythm Sync:</b> Shift on the pulsing center ring for -2f startup + Malícia!
           </p>
+          <div class="move-filters">
+            <input id="move-search" type="search" placeholder="Search move (e.g. Compasso, Macaco, Rasteira, Mortal)..." aria-label="Search moves" />
+            <div class="move-chips" id="move-chips"></div>
+          </div>
           <div class="move-grid" id="move-grid"></div>
         </div>
       </div>
@@ -141,20 +151,76 @@ export class GameHud {
     this.frameInfo = this.root.querySelector('#frame-info')!;
     this.moveModal = this.root.querySelector('#move-modal')!;
 
-    // Populate move list
+    // Populate move list with category tabs + live Search + Try button
     const grid = this.root.querySelector('#move-grid')!;
-    grid.innerHTML = MOVES.map((m) => {
-      const firstHit = m.hits[0];
-      const startup = firstHit ? `${firstHit.frames[0]}f` : '—';
-      const lvl = firstHit ? firstHit.level : 'STANCE';
-      const dmg = m.hits.reduce((a, b) => a + b.damage, 0);
-      return `<div class="move-row">
-        <span class="m-name">${m.name}</span>
-        <span class="m-from">${m.from.join('/')}</span>
-        <span class="m-in">${m.input}</span>
-        <span class="m-meta">${lvl} · ${startup} · ${dmg > 0 ? `${dmg} dmg` : m.endStance}</span>
-      </div>`;
-    }).join('');
+    const searchEl = this.root.querySelector<HTMLInputElement>('#move-search')!;
+    const chipsEl = this.root.querySelector('#move-chips')!;
+    const categories: ('All' | MoveCategory)[] = [
+      'All',
+      'Base & Stances',
+      'Cartwheels',
+      'Kicks',
+      'Evasions & Floor',
+      'Sweeps & Takedowns',
+      'Acrobatics',
+    ];
+    let activeCat: 'All' | MoveCategory = 'All';
+
+    const renderMoves = () => {
+      const q = searchEl.value.trim().toLowerCase();
+      const filtered = MOVES.filter((m) => {
+        if (activeCat !== 'All' && m.category !== activeCat) return false;
+        if (!q) return true;
+        return (
+          m.name.toLowerCase().includes(q) ||
+          (m.english ?? '').toLowerCase().includes(q) ||
+          m.id.toLowerCase().includes(q) ||
+          m.input.toLowerCase().includes(q)
+        );
+      });
+      grid.innerHTML = filtered
+        .map((m) => {
+          const firstHit = m.hits[0];
+          const startup = firstHit ? `${firstHit.frames[0]}f` : '—';
+          const lvl = firstHit ? firstHit.level : 'STANCE';
+          const dmg = m.hits.reduce((a, b) => a + b.damage, 0);
+          return `<div class="move-row">
+            <span class="m-name">${m.name}</span>
+            <span class="m-from">${m.from.join('/')}</span>
+            <span class="m-in">${m.input}</span>
+            <span class="m-meta">${lvl} · ${startup} · ${dmg > 0 ? `${dmg} dmg` : m.endStance}</span>
+            <button class="m-try" type="button" data-try-move="${m.id}">▶ Try</button>
+          </div>`;
+        })
+        .join('');
+    };
+
+    chipsEl.innerHTML = categories
+      .map((c) => `<button type="button" class="move-chip${c === 'All' ? ' active' : ''}" data-cat="${c}">${c}</button>`)
+      .join('');
+
+    chipsEl.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-cat]');
+      if (!btn) return;
+      activeCat = btn.dataset.cat as 'All' | MoveCategory;
+      chipsEl.querySelectorAll('.move-chip').forEach((b) => b.classList.toggle('active', b === btn));
+      renderMoves();
+    });
+    searchEl.addEventListener('input', renderMoves);
+    grid.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-try-move]');
+      if (!btn) return;
+      const moveId = btn.dataset.tryMove;
+      if (moveId) {
+        this.toggleMoveList();
+        cb.onTryMove(moveId);
+      }
+    });
+    renderMoves();
+
+    this.root.querySelector<HTMLSelectElement>('#p1-char-select')!.addEventListener('change', (e) => {
+      cb.onSelectFighter(0, (e.target as HTMLSelectElement).value);
+    });
 
     this.root.querySelector('#close-moves')!.addEventListener('click', () => this.toggleMoveList());
 
@@ -214,6 +280,10 @@ export class GameHud {
 
   update(state: MatchState, events: SimEvent[], showFrameInfo: boolean, dtFrames = 1): void {
     const [f0, f1] = state.fighters;
+    const n0El = this.root.querySelector('#name-0');
+    const n1El = this.root.querySelector('#name-1');
+    if (n0El) n0El.textContent = charById(f0.charId).name.toUpperCase();
+    if (n1El) n1El.textContent = charById(f1.charId).name.toUpperCase();
     const p0 = Math.max(0, (f0.health / f0.maxHealth) * 100);
     const p1 = Math.max(0, (f1.health / f1.maxHealth) * 100);
     this.hp0.style.width = `${p0}%`;

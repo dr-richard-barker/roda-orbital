@@ -84,51 +84,65 @@ export function stepAi(
   // Stance-specific decisions
   if (me.stance === 'HSP') {
     mem.cooldown = pace;
-    if (dist < 2.1) {
-      return r < 0.55 ? { dir: 5, buttons: BTN_RK } : { dir: 5, buttons: BTN_LK };
+    if (dist < 2.2) {
+      if (r < 0.35) return { dir: 5, buttons: BTN_RK }; // Helicóptero
+      if (r < 0.65) return { dir: 5, buttons: BTN_LK }; // Pião de Mão
+      if (r < 0.82) return { dir: 6, buttons: BTN_RH }; // Aú de Frente
+      return { dir: 4, buttons: BTN_LK }; // Aú de Uma Mão
     }
     return { dir: 5, buttons: BTN_STANCE };
   }
 
   if (me.stance === 'RLX') {
     mem.cooldown = pace;
-    if (dist < 1.9) {
-      if (r < 0.42) return { dir: 5, buttons: BTN_RK }; // Rasteira
-      if (r < 0.75) return { dir: 5, buttons: BTN_LK }; // Chapa
-      return { dir: 5, buttons: BTN_LH }; // Cabeçada
+    if (dist < 2.0) {
+      if (r < 0.25) return { dir: 5, buttons: BTN_RK }; // Rasteira
+      if (r < 0.45) return { dir: 5, buttons: BTN_LK }; // Chapa
+      if (r < 0.6) return { dir: 5, buttons: BTN_LH }; // Cabeçada
+      if (r < 0.72) return { dir: 3, buttons: BTN_RK }; // Corta Capim
+      if (r < 0.84) return { dir: 5, buttons: BTN_LH | BTN_RH }; // Tesoura de Frente
+      return { dir: 8, buttons: BTN_LK }; // Macaco escape
     }
     return { dir: 5, buttons: BTN_STANCE }; // Rolê / shift back
   }
 
   // GINGA stance offense & spacing
   if (dist > 2.6) {
-    if (r < 0.22) {
+    if (r < 0.24) {
       mem.cooldown = 18;
       return { dir: 6, buttons: BTN_STANCE }; // Aú forward!
+    }
+    if (r < 0.36) {
+      mem.cooldown = 20;
+      return { dir: 8, buttons: BTN_LK }; // Vôo do Morcego leap!
     }
     return { dir: 6, buttons: 0 };
   }
 
   if (dist > 1.75) {
     mem.cooldown = pace + 6;
-    if (r < 0.25) {
+    if (r < 0.22) {
       mem.planMove = 'QCF_RK';
       mem.planStep = 0;
       return { dir: 2, buttons: 0 };
     }
-    if (r < 0.55) return { dir: 6, buttons: BTN_RK }; // Armada
-    if (r < 0.8) return { dir: 6, buttons: BTN_LK }; // Queixada
+    if (r < 0.44) return { dir: 6, buttons: BTN_RK }; // Armada
+    if (r < 0.62) return { dir: 6, buttons: BTN_LK }; // Queixada
+    if (r < 0.76) return { dir: 4, buttons: BTN_LK }; // Meia-Lua de Frente
+    if (r < 0.88) return { dir: 3, buttons: BTN_RK }; // Chapa Lateral
     return { dir: 6, buttons: 0 };
   }
 
   // Close range (< 1.75m)
   mem.cooldown = pace;
-  if (r < 0.2) return { dir: 5, buttons: BTN_LK }; // Ponteira
-  if (r < 0.36) return { dir: 5, buttons: BTN_RH }; // Galopante
-  if (r < 0.52) return { dir: 5, buttons: BTN_LH }; // Bênção
-  if (r < 0.66) return { dir: 2, buttons: BTN_RK }; // Aú Batido launcher!
-  if (r < 0.78) return { dir: 5, buttons: BTN_RK }; // Martelo
-  if (r < 0.88) return { dir: 5, buttons: BTN_LH | BTN_RH }; // Vingativa throw
-  if (r < 0.94) return { dir: 2, buttons: BTN_STANCE }; // Negativa
+  if (r < 0.16) return { dir: 5, buttons: BTN_LK }; // Ponteira
+  if (r < 0.28) return { dir: 5, buttons: BTN_RH }; // Galopante
+  if (r < 0.4) return { dir: 5, buttons: BTN_LH }; // Bênção
+  if (r < 0.52) return { dir: 2, buttons: BTN_RK }; // Aú Batido launcher!
+  if (r < 0.64) return { dir: 5, buttons: BTN_RK }; // Martelo
+  if (r < 0.74) return { dir: 5, buttons: BTN_LH | BTN_RH }; // Vingativa throw
+  if (r < 0.82) return { dir: 6, buttons: BTN_LH }; // Joelhada knee!
+  if (r < 0.89) return { dir: 1, buttons: BTN_RH }; // Cocorinha dodge
+  if (r < 0.95) return { dir: 2, buttons: BTN_STANCE }; // Negativa
   return { dir: 8, buttons: BTN_STANCE }; // Bananeira
 }

@@ -138,8 +138,31 @@ export function applyGroundPinning(fk: FK, bones: ScaledBone[], f: FighterState)
   if (f.pos[1] > 0.03) return;
   if (f.mode === 'JUGGLE' || f.mode === 'KNOCKDOWN' || f.mode === 'KO') return;
 
-  // Handstand / floor spin: pin support hands close to ground
-  if (f.stance === 'HSP' || f.moveId === 'meia_lua_compasso') {
+  const mid = f.moveId ?? '';
+  const handPinnedMove =
+    f.stance === 'HSP' ||
+    f.stance === 'RLX' ||
+    mid.startsWith('meia_lua') ||
+    mid.startsWith('au') ||
+    mid.startsWith('escorpiao') ||
+    mid.startsWith('bananeira') ||
+    mid.startsWith('queda_') ||
+    mid === 'ponte_para_tras' ||
+    mid === 'aranha' ||
+    mid === 'relogio' ||
+    mid === 'corta_capim' ||
+    mid === 'macaco' ||
+    mid === 'macaquinho' ||
+    mid === 'rasteira' ||
+    mid === 'rasteira_de_costas' ||
+    mid === 'role_de_ponte' ||
+    mid === 'volta_por_cima' ||
+    mid === 'volta_de_lado' ||
+    mid === 'corrupio' ||
+    mid === 'fuga';
+
+  // Handstand / floor spin / cartwheel: pin support hands close to ground
+  if (handPinnedMove) {
     for (const [ua, fa, ha] of [
       ['upperArmL', 'foreArmL', 'handL'],
       ['upperArmR', 'foreArmR', 'handR'],
@@ -153,7 +176,7 @@ export function applyGroundPinning(fk: FK, bones: ScaledBone[], f: FighterState)
         pinChain(fk, bones, ua, fa, ha, wrist[1] + delta);
       }
     }
-    return;
+    if (f.stance === 'HSP' || mid.startsWith('au') || mid.startsWith('bananeira')) return;
   }
 
   // Grounded stances & kicks: pin any support foot whose sole is within 12 cm of ground
