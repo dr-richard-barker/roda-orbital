@@ -97,7 +97,16 @@ function setT(fk: FK, idx: number, v: Vec3): void {
   fk.tips[i] = v[0]; fk.tips[i + 1] = v[1]; fk.tips[i + 2] = v[2];
 }
 
-function pinChain(fk: FK, bones: ScaledBone[], aId: BoneId, bId: BoneId, cId: BoneId, targetAnkleY: number): void {
+function pinChain(
+  fk: FK,
+  bones: ScaledBone[],
+  aId: BoneId,
+  bId: BoneId,
+  cId: BoneId,
+  targetEndY: number,
+  childId?: BoneId,
+  poleHint?: Vec3,
+): void {
   const ia = BONE_INDEX[aId];
   const ib = BONE_INDEX[bId];
   const ic = BONE_INDEX[cId];
@@ -110,8 +119,9 @@ function pinChain(fk: FK, bones: ScaledBone[], aId: BoneId, bId: BoneId, cId: Bo
   const lenA = vlen(bones[ia].seg);
   const lenB = vlen(bones[ib].seg);
 
-  const pole = vsub(oldMid, root);
-  const target: Vec3 = [oldEnd[0], targetAnkleY, oldEnd[2]];
+  const rawPole = vsub(oldMid, root);
+  const pole = poleHint && vlen(rawPole) < 0.04 ? poleHint : rawPole;
+  const target: Vec3 = [oldEnd[0], targetEndY, oldEnd[2]];
   const solved = solveTwoBoneIK(root, lenA, lenB, target, pole);
 
   const oldDirA = vsub(oldMid, root);
@@ -127,12 +137,34 @@ function pinChain(fk: FK, bones: ScaledBone[], aId: BoneId, bId: BoneId, cId: Bo
   setT(fk, ib, solved.end);
   setJ(fk, ic, solved.end);
   const footOffset = vsub(oldTip, oldEnd);
-  setT(fk, ic, vadd(solved.end, footOffset));
+  const newEndTip = vadd(solved.end, footOffset);
+  setT(fk, ic, newEndTip);
+
+  // Propagate solved end-effector translation to child bone (toeL / toeR)
+  if (childId) {
+    const ich = BONE_INDEX[childId];
+    const oldChildTip = getT(fk, ich);
+    const childLen = vlen(bones[ich].seg);
+    const oldChildDir = vsub(oldChildTip, oldTip);
+    setJ(fk, ich, newEndTip);
+    let newChildTip = vadd(newEndTip, oldChildDir);
+    const rCh = fk.radii[ich];
+    // Prevent toes from dipping below terracotta floor; flatten horizontally for ball pivot
+    if (newChildTip[1] - rCh < 0.002) {
+      const targetTipY = Math.max(rCh, newEndTip[1] - 0.003);
+      const flatDir = vnorm([oldChildDir[0], targetTipY - newEndTip[1], oldChildDir[2]]);
+      if (vlen(flatDir) > 1e-4) {
+        rotateBoneMatrix(fk, ich, oldChildDir, flatDir);
+        newChildTip = vadd(newEndTip, vscale(flatDir, childLen));
+      }
+    }
+    setT(fk, ich, newChildTip);
+  }
 }
 
 /**
- * Renderer-side ground pinning: keeps planted support feet/hands locked cleanly
- * onto y = 0 so fighters never hover or sink during stances, walks, or kicks.
+ * Renderer-side ground pinning: keeps planted support feet (with toe hinge / ball pivot)
+ * and hands locked cleanly onto y = 0 so fighters never hover or sink.
  */
 export function applyGroundPinning(fk: FK, bones: ScaledBone[], f: FighterState): void {
   if (f.pos[1] > 0.03) return;
@@ -161,7 +193,7 @@ export function applyGroundPinning(fk: FK, bones: ScaledBone[], f: FighterState)
     mid === 'corrupio' ||
     mid === 'fuga';
 
-  // Handstand / floor spin / cartwheel: pin support hands close to ground
+  // Handstand / floor spin / cartwheel: pin support hands close to ground with palm plane
   if (handPinnedMove) {
     for (const [ua, fa, ha] of [
       ['upperArmL', 'foreArmL', 'handL'],
@@ -172,25 +204,40 @@ export function applyGroundPinning(fk: FK, bones: ScaledBone[], f: FighterState)
       const tip = getT(fk, ih);
       const minHandY = Math.min(wrist[1], tip[1]) - fk.radii[ih];
       if (minHandY < 0.14 && minHandY > -0.08) {
+        const elbowPole: Vec3 = [-f.facing[0], 0.1, -f.facing[1]];
         const delta = -minHandY;
-        pinChain(fk, bones, ua, fa, ha, wrist[1] + delta);
+        pinChain(fk, bones, ua, fa, ha, wrist[1] + delta, undefined, elbowPole);
+        // Flatten planted hand slightly toward horizontal ground contact if fingers poke down
+        const newWrist = getJ(fk, ih);
+        const newTip = getT(fk, ih);
+        const handR = fk.radii[ih];
+        if (newTip[1] - handR < 0) {
+          const oldHDir = vsub(newTip, newWrist);
+          const handLen = vlen(bones[ih].seg);
+          const horiz = vnorm([oldHDir[0] || f.facing[0] * 0.1, 0, oldHDir[2] || f.facing[1] * 0.1]);
+          rotateBoneMatrix(fk, ih, oldHDir, horiz);
+          setT(fk, ih, vadd(newWrist, vscale(horiz, handLen)));
+        }
       }
     }
     if (f.stance === 'HSP' || mid.startsWith('au') || mid.startsWith('bananeira')) return;
   }
 
-  // Grounded stances & kicks: pin any support foot whose sole is within 12 cm of ground
-  for (const [th, sh, ft] of [
-    ['thighL', 'shinL', 'footL'],
-    ['thighR', 'shinR', 'footR'],
-  ] as [BoneId, BoneId, BoneId][]) {
+  // Grounded stances & kicks: pin any support foot & toe whose sole is within 14 cm of ground
+  for (const [th, sh, ft, toe] of [
+    ['thighL', 'shinL', 'footL', 'toeL'],
+    ['thighR', 'shinR', 'footR', 'toeR'],
+  ] as [BoneId, BoneId, BoneId, BoneId][]) {
     const ift = BONE_INDEX[ft];
+    const itoe = BONE_INDEX[toe];
     const ankle = getJ(fk, ift);
-    const toe = getT(fk, ift);
-    const minSoleY = Math.min(ankle[1], toe[1]) - fk.radii[ift];
+    const ball = getT(fk, ift);
+    const toeTip = getT(fk, itoe);
+    const minSoleY = Math.min(ankle[1], ball[1], toeTip[1] + (fk.radii[ift] - fk.radii[itoe])) - fk.radii[ift];
     if (minSoleY < 0.14 && minSoleY > -0.15) {
+      const kneePole: Vec3 = [f.facing[0], 0.05, f.facing[1]];
       const delta = -minSoleY;
-      pinChain(fk, bones, th, sh, ft, ankle[1] + delta);
+      pinChain(fk, bones, th, sh, ft, ankle[1] + delta, toe, kneePole);
     }
   }
 }

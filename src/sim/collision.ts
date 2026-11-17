@@ -3,7 +3,7 @@ import { jointOf, tipOf, type FK } from '../anim/pose';
 import { segSegDist2, vlen, vnorm, vscale, vsub, type Vec3 } from '../core/fixedmath';
 import { BONES, BONE_INDEX, type BoneId } from '../data/skeleton';
 import { MOVE_BY_ID, type HitWindow, type HurtboxProfile } from '../data/moves';
-import type { FighterState } from './state';
+import type { FighterState, PlayMode } from './state';
 
 export interface WorldCapsule {
   a: Vec3;
@@ -12,8 +12,8 @@ export interface WorldCapsule {
   bone: BoneId;
 }
 
-const HEAD_CHEST_BONES = new Set<BoneId>(['head', 'chest', 'upperArmL', 'upperArmR', 'foreArmL', 'foreArmR', 'handL', 'handR']);
-const LOW_BONES = new Set<BoneId>(['thighL', 'shinL', 'footL', 'thighR', 'shinR', 'footR']);
+const HEAD_CHEST_BONES = new Set<BoneId>(['head', 'neck', 'chest', 'clavicleL', 'clavicleR', 'upperArmL', 'upperArmR', 'foreArmL', 'foreArmR', 'handL', 'handR']);
+const LOW_BONES = new Set<BoneId>(['thighL', 'shinL', 'footL', 'toeL', 'thighR', 'shinR', 'footR', 'toeR']);
 
 export function getHurtboxProfile(f: FighterState): HurtboxProfile {
   if (f.mode === 'ATTACK' && f.moveId) {
@@ -40,8 +40,8 @@ export function extractHurtboxes(f: FighterState, fk: FK): WorldCapsule[] {
   for (let b = 0; b < BONES.length; b++) {
     const id = BONES[b];
     if (profile === 'CRUSH_HIGH' && HEAD_CHEST_BONES.has(id)) {
-      // High-crushing moves/stances still have torso, just skip head/arms from high-crush check
-      if (id === 'head') continue;
+      // High-crushing moves/stances still have torso, just skip head/neck from high-crush check
+      if (id === 'head' || id === 'neck') continue;
     }
     if (profile === 'CRUSH_LOW' && LOW_BONES.has(id) && f.stance !== 'HSP') continue;
     const i3 = b * 3;
@@ -106,11 +106,30 @@ export function extractAllBodyCapsules(fk: FK): WorldCapsule[] {
   return out;
 }
 
+/**
+ * Compute deterministic pelvic pushbox separation for a pair of fighters.
+ * Keeps grounded Ginga torsos & heads separated at 0.78m while allowing
+ * tight entry during active throws, close sweeps/headbutts, and aerial cross-ups.
+ */
+export function computePairPushSeparation(a: FighterState, b: FighterState, playMode: PlayMode): number {
+  if (playMode === 'SHOW') return 0.95;
+  if (a.pos[1] > 0.35 || b.pos[1] > 0.35) return 0.48;
+
+  for (const f of [a, b]) {
+    if (f.mode !== 'ATTACK' || !f.moveId) continue;
+    const move = MOVE_BY_ID[f.moveId];
+    if (move?.tags?.includes('THROW')) return 0.48;
+    if (f.moveId === 'rasteira' || f.moveId === 'cabecada') return 0.68;
+  }
+
+  return 0.86;
+}
+
 export function resolvePushboxes(
   a: FighterState,
   b: FighterState,
   arenaRadius: number,
-  minSep = 0.62,
+  minSep = 0.86,
 ): void {
   const dx = b.pos[0] - a.pos[0];
   const dz = b.pos[2] - a.pos[2];

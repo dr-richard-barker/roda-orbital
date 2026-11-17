@@ -99,4 +99,32 @@ describe('Capoeira Play / Show Mode (Jogar na Roda)', () => {
 
     expect(run()).toBe(run());
   });
+
+  it('produces style-distinct cooperative Show duets for Angola (Jacaré vs Sombra) and Regional (Faísca vs Ciclone)', () => {
+    const runDuet = (c0: string, c1: string) => {
+      const s = createMatchState({ playMode: 'SHOW', p1Char: c0, p2Char: c1 });
+      const m0 = createShowAiMemory(0x24681357);
+      const m1 = createShowAiMemory(0x13572468);
+      const usedMoves = new Set<string>();
+      for (let f = 0; f < 2400; f++) {
+        step(s, [stepShowAi(s, 0, m0), stepShowAi(s, 1, m1)]);
+        for (const ft of s.fighters) {
+          if (ft.moveId) usedMoves.add(ft.moveId);
+        }
+      }
+      return { s, usedMoves };
+    };
+
+    const angola = runDuet('jacare', 'sombra');
+    const regional = runDuet('faisca', 'ciclone');
+
+    expect(angola.s.harmony.nearMisses).toBeGreaterThanOrEqual(8);
+    expect(angola.s.fighters[0].health).toBe(angola.s.fighters[0].maxHealth);
+    expect(regional.s.harmony.nearMisses).toBeGreaterThanOrEqual(8);
+    expect(regional.s.fighters[0].health).toBe(regional.s.fighters[0].maxHealth);
+
+    // Confirm distinct stylistic repertories appear across Angola vs Regional duets
+    const overlaps = [...angola.usedMoves].filter((m) => regional.usedMoves.has(m)).length;
+    expect(overlaps).toBeLessThan(Math.max(angola.usedMoves.size, regional.usedMoves.size));
+  });
 });

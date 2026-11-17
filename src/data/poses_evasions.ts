@@ -252,8 +252,40 @@ export const TRACK_TROCA_DE_NEGATIVA: Track = {
 export const TRACK_ROLE: Track = {
   keys: [
     { f: 0, pose: POSE_RLX_A },
-    { f: 8, pose: makePose(POSE_RLX_A, { root: { rx: 60, ry: 130, dy: 0.04 }, bones: { upperArmL: [-120, 0, 25], upperArmR: [-120, 0, -25], thighL: [-75, 0, 20], shinL: [90, 0, 0] } }) },
-    { f: 16, pose: makePose(POSE_GINGA_MID, { root: { ry: 280 }, bones: { spine: [18, 0, 0], thighL: [-40, 0, 15], shinL: [65, 0, 0] } }) },
+    {
+      f: 8,
+      easing: 'coil',
+      pose: makePose(POSE_RLX_A, {
+        root: { rx: 62, ry: 130, dy: 0.04 },
+        bones: {
+          neck: [-14, -34, 0],
+          head: [-14, -44, 0],
+          upperArmL: [-125, 0, 24],
+          handL: [74, 0, 0],
+          upperArmR: [-125, 0, -24],
+          handR: [74, 0, 0],
+          thighL: [-78, 0, 20],
+          shinL: [92, 0, 0],
+          footR: [18, 0, 0],
+          toeR: [-28, 0, 0],
+        },
+      }),
+    },
+    {
+      f: 16,
+      pose: makePose(POSE_GINGA_MID, {
+        root: { ry: 280 },
+        bones: {
+          spine: [18, 0, 0],
+          neck: [-8, -22, 0],
+          head: [-10, -24, 0],
+          thighL: [-44, 12, 16],
+          shinL: [70, 0, 0],
+          footL: [-14, 0, 0],
+          toeL: [-22, 0, 0],
+        },
+      }),
+    },
     { f: 24, pose: POSE_GINGA_R },
   ],
 };
@@ -367,3 +399,105 @@ export const TRACK_RELOGIO: Track = buildSpinTrack(
   POSE_RLX_A,
   30,
 );
+
+/** Chamada de Angola (Ritual open-palm invitation / tactical malícia trap). */
+export const TRACK_CHAMADA: Track = {
+  keys: [
+    { f: 0, pose: POSE_GINGA_MID },
+    {
+      f: 8,
+      pose: makePose(POSE_NEUTRAL, {
+        root: { ry: 12 },
+        bones: {
+          spine: [-6, 8, 0],
+          chest: [-6, 12, 0],
+          head: [4, -10, 0],
+          upperArmR: [-84, -12, -22],
+          foreArmR: [-14, 0, 0],
+          handR: [24, 0, 0],
+          upperArmL: [-40, 22, 24],
+          foreArmL: [-92, 0, -24],
+          thighL: [-22, 10, 8],
+          shinL: [34, 0, 0],
+          footL: [-12, 0, 0],
+          thighR: [10, -10, -8],
+          shinR: [20, 0, 0],
+          footR: [-10, 0, 0],
+        },
+      }),
+    },
+    {
+      f: 24,
+      pose: makePose(POSE_NEUTRAL, {
+        root: { ry: -8 },
+        bones: {
+          spine: [6, -6, 0],
+          chest: [4, -8, 0],
+          head: [-4, 12, 0],
+          upperArmR: [-76, -10, -26],
+          foreArmR: [-22, 0, 0],
+          handR: [20, 0, 0],
+          upperArmL: [-48, 22, 26],
+          foreArmL: [-96, 0, -24],
+          thighL: [-26, 10, 10],
+          shinL: [40, 0, 0],
+          footL: [-14, 0, 0],
+          thighR: [-14, -10, -10],
+          shinR: [28, 0, 0],
+          footR: [-14, 0, 0],
+        },
+      }),
+    },
+    { f: 34, pose: POSE_GINGA_R },
+  ],
+};
+
+/** Volta ao Mundo (Calm circling walk around Roda perimeter to reset rhythm and catch breath). */
+export const TRACK_VOLTA_MUNDO: Track = {
+  keys: [
+    { f: 0, pose: POSE_GINGA_MID },
+    {
+      f: 9,
+      pose: makePose(POSE_NEUTRAL, {
+        root: { ry: 20 },
+        bones: {
+          spine: [4, 10, -4],
+          chest: [2, 12, -4],
+          head: [-4, -18, 0],
+          upperArmL: [-34, 12, 22],
+          foreArmL: [-66, 0, -18],
+          upperArmR: [18, -10, -18],
+          foreArmR: [-42, 0, 14],
+          thighL: [-28, 8, 8],
+          shinL: [38, 0, 0],
+          footL: [-10, 0, 0],
+          thighR: [18, -8, -8],
+          shinR: [22, 0, 0],
+          footR: [12, 0, 0],
+        },
+      }),
+    },
+    {
+      f: 21,
+      pose: makePose(POSE_NEUTRAL, {
+        root: { ry: -18 },
+        bones: {
+          spine: [4, -10, 4],
+          chest: [2, -12, 4],
+          head: [-4, 16, 0],
+          upperArmL: [16, 10, 18],
+          foreArmL: [-42, 0, -14],
+          upperArmR: [-36, -12, -22],
+          foreArmR: [-66, 0, 18],
+          thighL: [18, 8, 8],
+          shinL: [22, 0, 0],
+          footL: [12, 0, 0],
+          thighR: [-28, -8, -8],
+          shinR: [38, 0, 0],
+          footR: [-10, 0, 0],
+        },
+      }),
+    },
+    { f: 32, pose: POSE_GINGA_MID },
+  ],
+};

@@ -512,9 +512,48 @@ export const CORE_MOVES: MoveDef[] = [
     cancels: [
       { into: 'martelo', window: [12, 22], on: 'ALWAYS', input: 'RK' },
       { into: 'au_batido', window: [12, 22], on: 'ALWAYS', input: '2RK' },
+      { into: 'armada', window: [12, 22], on: 'ALWAYS', input: '6RK' },
+      { into: 'cabecada', window: [12, 22], on: 'ALWAYS', input: 'LH' },
     ],
     endStance: 'GINGA',
     rootMotion: [{ frames: [2, 18], vel: [3.2, 0, 0] }],
+    tags: ['FLOREIO'],
+  },
+  {
+    id: 'chamada',
+    name: 'Chamada (Angola Call)',
+    input: '2LH+LK',
+    from: ['GINGA'],
+    totalFrames: 34,
+    poseId: 'chamada',
+    hurtboxOverrides: [{ frames: [6, 22], profile: 'CRUSH_HIGH' }],
+    hits: [],
+    cancels: [
+      { into: 'cabecada', window: [12, 30], on: 'ALWAYS', input: 'LH', beatBonus: 2 },
+      { into: 'rasteira', window: [12, 30], on: 'ALWAYS', input: 'RK', beatBonus: 2 },
+      { into: 'tesoura_de_frente', window: [12, 30], on: 'ALWAYS', input: 'LK' },
+      { into: 'negativa_angola', window: [10, 30], on: 'ALWAYS', input: 'RH' },
+    ],
+    endStance: 'GINGA',
+    rootMotion: [{ frames: [4, 14], vel: [0.9, 0, 0] }],
+    tags: ['FLOREIO'],
+  },
+  {
+    id: 'volta_ao_mundo',
+    name: 'Volta ao Mundo',
+    input: '4RH+LK',
+    from: ['GINGA'],
+    totalFrames: 32,
+    poseId: 'volta_ao_mundo',
+    hurtboxOverrides: [{ frames: [5, 22], profile: 'CRUSH_HIGH' }],
+    hits: [],
+    cancels: [
+      { into: 'balanca', window: [14, 30], on: 'ALWAYS', input: 'RH', beatBonus: 2 },
+      { into: 'meia_lua_frente', window: [14, 30], on: 'ALWAYS', input: 'LK' },
+      { into: 'au', window: [14, 30], on: 'ALWAYS', input: 'STANCE' },
+    ],
+    endStance: 'GINGA',
+    rootMotion: [{ frames: [3, 24], vel: [0.85, 0, 2.1] }],
     tags: ['FLOREIO'],
   },
 ];
@@ -607,16 +646,266 @@ const CORE_META: Record<string, { category: MoveCategory; english: string; descr
     english: 'Low Ground Pivot Roll',
     description: 'Smooth low circular pivot keeping eyes fixed on opponent while recovering cleanly into Ginga.',
   },
+  chamada: {
+    category: 'Base & Stances',
+    english: 'Angola Ritual Call & Trap',
+    description: 'Iconic Capoeira Angola open-palm invitation baiting a close step to trap with Cabeçada, Rasteira, or Tesoura.',
+  },
+  volta_ao_mundo: {
+    category: 'Base & Stances',
+    english: 'Trip Around the Roda Reset',
+    description: 'Circling perimeter stride resetting breath, Malícia, and spacing before launching back into the game.',
+  },
 };
 
+/**
+ * Video- & tutorial-derived flowing transition grammar layered onto CORE_MOVES and EXTRA_MOVES:
+ * - Mestre Bimba Regional Sequências (Meia-Lua de Frente / Queixada -> Armada -> Cocorinha -> Bênção -> Aú -> Rolê)
+ * - Capoeira Angola Ground Spiderweb (Negativa de Angola <-> Troca -> Rasteira de Mão / Tesoura / Cabeçada -> Rolê)
+ * - Minhoquinho & Contemporânea Floreio Chains (Macaco / Ponte / QDR / Relógio / Pião de Mão / Aú Chibata)
+ */
+const FLOW_CANCEL_ROUTES: Record<string, CancelRule[]> = {
+  // Core Regional / Linear-to-Spin Chains
+  ponteira: [
+    { into: 'meia_lua_frente', window: [7, 16], on: 'ALWAYS', input: 'LK' },
+    { into: 'bencao', window: [7, 16], on: 'ALWAYS', input: 'LH' },
+  ],
+  galopante: [
+    { into: 'joelhada', window: [9, 20], on: 'ALWAYS', input: 'LH' },
+    { into: 'martelo', window: [10, 20], on: 'ALWAYS', input: '2RK' },
+    { into: 'arrastao', window: [10, 21], on: 'HIT', input: '2LH+RH' },
+  ],
+  joelhada: [
+    { into: 'arrastao', window: [11, 25], on: 'ALWAYS', input: 'LH+RH' },
+    { into: 'martelo', window: [11, 25], on: 'ALWAYS', input: 'RK' },
+  ],
+  bencao: [
+    { into: 'chapa_lateral', window: [11, 23], on: 'ALWAYS', input: 'RK' },
+    { into: 'vingativa', window: [11, 24], on: 'ALWAYS', input: 'LH+RH' },
+    { into: 'au', window: [13, 25], on: 'ALWAYS', input: 'LK' },
+  ],
+  martelo: [
+    { into: 'rasteira', window: [13, 26], on: 'ALWAYS', input: '2LK', beatBonus: 2 },
+    { into: 'banda_de_costas', window: [13, 26], on: 'ALWAYS', input: '4LK+RK' },
+  ],
+  queixada: [
+    { into: 'cocorinha', window: [12, 24], on: 'ALWAYS', input: '1RH' },
+    { into: 'meia_lua_compasso', window: [13, 25], on: 'HIT', input: '2RK', beatBonus: 2 },
+    { into: 'bencao', window: [13, 24], on: 'ALWAYS', input: 'LH' },
+  ],
+  armada: [
+    { into: 'meia_lua_compasso', window: [15, 29], on: 'ALWAYS', input: 'RK', beatBonus: 2 },
+    { into: 'armada_com_martelo', window: [16, 29], on: 'ALWAYS', input: 'LH' },
+    { into: 'au', window: [17, 30], on: 'ALWAYS', input: 'LK' },
+  ],
+  meia_lua_compasso: [
+    { into: 'queda_de_rins', window: [18, 33], on: 'ALWAYS', input: '2LK', beatBonus: 2 },
+    { into: 'fuga', window: [19, 34], on: 'ALWAYS', input: '4LK' },
+    { into: 'negativa_angola', window: [18, 34], on: 'ALWAYS', input: 'RH' },
+  ],
+  au: [
+    { into: 'bananeira', window: [11, 20], on: 'ALWAYS', input: 'RH', beatBonus: 2 },
+    { into: 'queda_de_rins', window: [11, 20], on: 'ALWAYS', input: 'LH' },
+    { into: 'role', window: [13, 21], on: 'ALWAYS', input: 'STANCE' },
+  ],
+  rasteira: [
+    { into: 'cabecada', window: [14, 26], on: 'HIT', input: 'LH' },
+    { into: 'au', window: [15, 26], on: 'ALWAYS', input: 'RH' },
+  ],
+  cabecada: [
+    { into: 'tesoura_de_frente', window: [12, 24], on: 'ALWAYS', input: 'RK' },
+    { into: 'negativa_angola', window: [13, 24], on: 'ALWAYS', input: 'RH' },
+  ],
+
+  // Base & Evasions -> Counters & Ground Flow
+  balanca: [
+    { into: 'chamada', window: [10, 26], on: 'ALWAYS', input: 'LH' },
+    { into: 'meia_lua_frente', window: [10, 26], on: 'ALWAYS', input: 'LK' },
+    { into: 'au', window: [10, 26], on: 'ALWAYS', input: 'RH' },
+  ],
+  cocorinha: [
+    { into: 'bencao', window: [11, 24], on: 'ALWAYS', input: 'LH', beatBonus: 2 },
+    { into: 'queixada', window: [11, 24], on: 'ALWAYS', input: 'LK' },
+    { into: 'armada', window: [12, 24], on: 'ALWAYS', input: 'RH' },
+  ],
+  resistencia: [
+    { into: 'rasteira', window: [11, 24], on: 'ALWAYS', input: 'LK' },
+    { into: 'corta_capim', window: [12, 24], on: 'ALWAYS', input: 'RH' },
+    { into: 'role', window: [13, 24], on: 'ALWAYS', input: 'LH', beatBonus: 2 },
+  ],
+  esquiva_lateral: [
+    { into: 'armada', window: [11, 24], on: 'ALWAYS', input: 'RK' },
+    { into: 'martelo', window: [11, 24], on: 'ALWAYS', input: 'LK' },
+    { into: 'banda_de_frente', window: [12, 24], on: 'ALWAYS', input: 'RH' },
+  ],
+  esquiva_de_lado: [
+    { into: 'meia_lua_frente', window: [11, 24], on: 'ALWAYS', input: 'LK' },
+    { into: 'armada', window: [11, 24], on: 'ALWAYS', input: 'RK' },
+  ],
+  esquiva_de_costas: [
+    { into: 'queixada', window: [11, 24], on: 'ALWAYS', input: 'LK' },
+    { into: 'meia_lua_frente', window: [11, 24], on: 'ALWAYS', input: 'LH' },
+    { into: 'rasteira', window: [12, 24], on: 'ALWAYS', input: 'RH' },
+  ],
+  esquiva_de_frente: [
+    { into: 'bencao', window: [10, 24], on: 'ALWAYS', input: 'LH', beatBonus: 2 },
+    { into: 'vingativa', window: [11, 24], on: 'ALWAYS', input: 'LK' },
+  ],
+  esquiva_baixa: [
+    { into: 'cabecada', window: [11, 24], on: 'ALWAYS', input: 'LH' },
+    { into: 'macaco', window: [12, 24], on: 'ALWAYS', input: 'LK' },
+    { into: 'boca_de_calca', window: [12, 24], on: 'ALWAYS', input: 'RH' },
+  ],
+  ponte_para_tras: [
+    { into: 'role_de_ponte', window: [15, 31], on: 'ALWAYS', input: 'RH', beatBonus: 2 },
+    { into: 'macaco', window: [16, 31], on: 'ALWAYS', input: 'LK' },
+  ],
+
+  // Angola Ground Spiderweb & Takedown Flow
+  negativa: [
+    { into: 'role', window: [11, 26], on: 'ALWAYS', input: 'LK', beatBonus: 2 },
+    { into: 'cabecada', window: [11, 26], on: 'ALWAYS', input: 'LH' },
+    { into: 'rasteira', window: [11, 26], on: 'ALWAYS', input: 'RK' },
+    { into: 'troca_de_negativa', window: [10, 26], on: 'ALWAYS', input: 'RH' },
+  ],
+  negativa_angola: [
+    { into: 'troca_de_negativa', window: [10, 26], on: 'ALWAYS', input: 'RH', beatBonus: 2 },
+    { into: 'rasteira_de_mao', window: [12, 26], on: 'ALWAYS', input: 'LH' },
+    { into: 'tesoura_de_frente', window: [12, 26], on: 'ALWAYS', input: 'LK' },
+    { into: 'boca_de_calca', window: [12, 26], on: 'ALWAYS', input: 'RK' },
+  ],
+  troca_de_negativa: [
+    { into: 'corta_capim', window: [11, 24], on: 'ALWAYS', input: 'RK' },
+    { into: 'rasteira_de_mao', window: [11, 24], on: 'ALWAYS', input: 'LH' },
+    { into: 'role', window: [12, 24], on: 'ALWAYS', input: 'LK' },
+  ],
+  queda_de_rins: [
+    { into: 'relogio', window: [13, 31], on: 'ALWAYS', input: 'LK', beatBonus: 2 },
+    { into: 'piao_mao', window: [13, 31], on: 'ALWAYS', input: 'LH' },
+    { into: 'mola', window: [14, 31], on: 'ALWAYS', input: 'RH' },
+    { into: 's_dobrado', window: [14, 31], on: 'ALWAYS', input: 'RK' },
+  ],
+  fuga: [
+    { into: 'volta_de_lado', window: [12, 24], on: 'ALWAYS', input: 'RH' },
+    { into: 'role', window: [12, 24], on: 'ALWAYS', input: 'LH' },
+    { into: 'macaco', window: [12, 24], on: 'ALWAYS', input: 'LK' },
+  ],
+  volta_de_lado: [
+    { into: 'au_queda_de_rins', window: [12, 26], on: 'ALWAYS', input: 'LK', beatBonus: 2 },
+    { into: 'macaquinho', window: [12, 26], on: 'ALWAYS', input: 'RH' },
+  ],
+  corrupio: [
+    { into: 'corta_capim', window: [13, 28], on: 'ALWAYS', input: 'RK' },
+    { into: 'relogio', window: [13, 28], on: 'ALWAYS', input: 'LK' },
+  ],
+
+  // Regional & Extra Kick / Sweep Flow
+  chapa: [
+    { into: 'cruz', window: [15, 26], on: 'ALWAYS', input: 'LH+RH' },
+    { into: 'rasteira', window: [15, 26], on: 'ALWAYS', input: 'RK' },
+  ],
+  chapa_giratoria: [
+    { into: 'parafuso', window: [14, 28], on: 'ALWAYS', input: 'LK', beatBonus: 2 },
+    { into: 'armada', window: [15, 28], on: 'ALWAYS', input: 'RK' },
+  ],
+  meia_lua_frente: [
+    { into: 'armada', window: [13, 27], on: 'ALWAYS', input: 'RK', beatBonus: 2 },
+    { into: 'queixada', window: [13, 27], on: 'ALWAYS', input: 'LK' },
+  ],
+  armada_dupla: [
+    { into: 'folha_seca', window: [16, 28], on: 'HIT', input: 'LK' },
+    { into: 'mortal', window: [16, 28], on: 'ALWAYS', input: 'RH' },
+  ],
+  chapeu_de_couro: [
+    { into: 'corta_capim', window: [14, 28], on: 'ALWAYS', input: 'RK' },
+    { into: 'martelo', window: [14, 28], on: 'ALWAYS', input: 'LK' },
+  ],
+  corta_capim: [
+    { into: 'au_queda_de_rins', window: [16, 33], on: 'ALWAYS', input: 'LK' },
+    { into: 'role', window: [16, 33], on: 'ALWAYS', input: 'LH' },
+  ],
+  meia_lua_solta: [
+    { into: 'chapa_giratoria', window: [14, 28], on: 'ALWAYS', input: 'RK', beatBonus: 2 },
+    { into: 'parafuso', window: [15, 28], on: 'HIT', input: 'LK' },
+  ],
+  bananeira: [
+    { into: 'helicoptero', window: [10, 26], on: 'ALWAYS', input: 'RK' },
+    { into: 'piao_mao', window: [10, 26], on: 'ALWAYS', input: 'LK' },
+    { into: 'xango', window: [11, 26], on: 'ALWAYS', input: 'RH' },
+    { into: 'escorpiao', window: [11, 26], on: 'ALWAYS', input: 'LH' },
+  ],
+  relogio: [
+    { into: 's_dobrado', window: [16, 29], on: 'ALWAYS', input: 'RK' },
+    { into: 'piao_mao', window: [16, 29], on: 'ALWAYS', input: 'LH' },
+  ],
+
+  // Minhoquinho & Floreio Chains
+  macaco_em_pe: [
+    { into: 'volta_de_lado', window: [14, 27], on: 'ALWAYS', input: 'RH', beatBonus: 2 },
+    { into: 'ponte_para_tras', window: [14, 27], on: 'ALWAYS', input: 'LK' },
+  ],
+  macaquinho: [
+    { into: 'au', window: [14, 30], on: 'ALWAYS', input: 'LK' },
+    { into: 'piao_mao', window: [14, 30], on: 'ALWAYS', input: 'RH' },
+    { into: 'macaco', window: [14, 30], on: 'ALWAYS', input: 'LH' },
+  ],
+  macaco: [
+    { into: 'armada', window: [16, 33], on: 'ALWAYS', input: 'RK' },
+    { into: 's_dobrado', window: [16, 33], on: 'ALWAYS', input: 'LK', beatBonus: 2 },
+  ],
+  mola: [
+    { into: 's_dobrado', window: [14, 26], on: 'ALWAYS', input: 'LK' },
+    { into: 'ponteira', window: [14, 26], on: 'ALWAYS', input: 'RK' },
+  ],
+  au_queda_de_rins: [
+    { into: 'volta_por_cima', window: [14, 28], on: 'ALWAYS', input: 'RH', beatBonus: 2 },
+    { into: 'au_chibata', window: [15, 28], on: 'ALWAYS', input: 'RK' },
+  ],
+  au_chibata: [
+    { into: 'au_trancado', window: [16, 30], on: 'ALWAYS', input: 'LK' },
+    { into: 'giro', window: [16, 30], on: 'ALWAYS', input: 'LH' },
+  ],
+  au_sem_mao: [
+    { into: 'armada_dupla', window: [14, 28], on: 'ALWAYS', input: 'RK', beatBonus: 2 },
+    { into: 'folha_seca', window: [15, 28], on: 'ALWAYS', input: 'LK' },
+  ],
+};
+
+function attachFlowCancels(m: MoveDef): MoveDef {
+  const extra = FLOW_CANCEL_ROUTES[m.id];
+  if (!extra || extra.length === 0) return m;
+  const overrideInputs = new Set(extra.map((r) => r.input ?? r.into));
+  // Drop generic floreio() 'martelo' fallback when curated Capoeira flow cancels override that input
+  const baseCancels = m.cancels.filter(
+    (c) => !(m.hits.length === 0 && c.into === 'martelo' && overrideInputs.has(c.input ?? c.into)),
+  );
+  const usedInputs = new Set(baseCancels.map((c) => c.input ?? c.into));
+  const merged: CancelRule[] = [...baseCancels];
+  for (const r of extra) {
+    const key = r.input ?? r.into;
+    if (usedInputs.has(key)) continue;
+    usedInputs.add(key);
+    merged.push({
+      ...r,
+      window: [
+        Math.max(1, Math.min(m.totalFrames, r.window[0])),
+        Math.max(1, Math.min(m.totalFrames, r.window[1])),
+      ],
+    });
+  }
+  return { ...m, cancels: merged };
+}
+
 export const MOVES: MoveDef[] = [
-  ...CORE_MOVES.map((m) => ({
-    ...m,
-    category: CORE_META[m.id]?.category ?? 'Base & Stances',
-    english: CORE_META[m.id]?.english ?? m.name,
-    description: CORE_META[m.id]?.description ?? '',
-  })),
-  ...EXTRA_MOVES,
+  ...CORE_MOVES.map((m) =>
+    attachFlowCancels({
+      ...m,
+      category: CORE_META[m.id]?.category ?? 'Base & Stances',
+      english: CORE_META[m.id]?.english ?? m.name,
+      description: CORE_META[m.id]?.description ?? '',
+    }),
+  ),
+  ...EXTRA_MOVES.map((m) => attachFlowCancels(m)),
 ];
 
 export const MOVE_BY_ID: Record<string, MoveDef> = Object.fromEntries(MOVES.map((m) => [m.id, m]));

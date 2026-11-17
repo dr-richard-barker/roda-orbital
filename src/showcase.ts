@@ -1,6 +1,6 @@
 // Interactive 3D Capoeira Move Showcase & Mudroljub / Minhoquinho Library Comparison.
 import './showcase.css';
-import { charById, ROSTER, type CostumeId } from './data/characters';
+import { charById, COSTUME_LIST, ROSTER, type CostumeId } from './data/characters';
 import {
   buildComparisonRows,
   getCoverageSummary,
@@ -10,6 +10,12 @@ import {
 } from './data/moveCatalog';
 import { MOVE_BY_ID, MOVES, type MoveCategory, type MoveDef } from './data/moves';
 import { getShowcasePairReply } from './data/rodaDialogues';
+import {
+  FILTER_PRESETS,
+  STYLE_PRESETS,
+  type VisualFilterId,
+  type VisualStyleId,
+} from './render/presets';
 import { GameRenderer } from './render/scene';
 import { createMatchState, type InputFrame, type MatchState } from './sim/state';
 import { step, triggerShowcaseAction } from './sim/step';
@@ -35,6 +41,10 @@ const animListEl = document.getElementById('anim-move-list')!;
 
 const fighterSelect = document.getElementById('sc-fighter') as HTMLSelectElement;
 const gravitySelect = document.getElementById('sc-gravity') as HTMLSelectElement;
+const paletteSelect = document.getElementById('sc-palette') as HTMLSelectElement;
+const skinSelect = document.getElementById('sc-skin') as HTMLSelectElement;
+const styleSelect = document.getElementById('sc-style') as HTMLSelectElement;
+const filterSelect = document.getElementById('sc-filter') as HTMLSelectElement;
 const btnMaculele = document.getElementById('sc-maculele') as HTMLButtonElement;
 const btnDummy = document.getElementById('sc-dummy') as HTMLButtonElement;
 const btnPair = document.getElementById('sc-pair') as HTMLButtonElement;
@@ -64,10 +74,13 @@ badgesEl.innerHTML = `
   <span class="cov-pill">✓ Minhoquinho Videos: ${coverage.minhoquinhoCovered}/${coverage.minhoquinhoTotal} (100%)</span>
 `;
 
-// Populate fighter & category dropdowns
+// Populate fighter, skin, style, filter & category dropdowns
 fighterSelect.innerHTML = ROSTER.map(
   (c) => `<option value="${c.id}">${c.name} — ${c.style}</option>`,
 ).join('');
+skinSelect.innerHTML = COSTUME_LIST.map((c) => `<option value="${c.id}">${c.label}</option>`).join('');
+styleSelect.innerHTML = STYLE_PRESETS.map((s) => `<option value="${s.id}">${s.label}</option>`).join('');
+filterSelect.innerHTML = FILTER_PRESETS.map((f) => `<option value="${f.id}">${f.label}</option>`).join('');
 
 const CATEGORIES: ('All' | MoveCategory)[] = [
   'All',
@@ -92,7 +105,9 @@ matrixCatEl.innerHTML =
 // State for showcase simulation & camera
 let selectedMoveId = 'ginga';
 let selectedFighter = 'faisca';
+let selectedPalette = 0;
 let selectedCostume: CostumeId = 'default';
+let manualStyleSelected = false;
 let dummyEnabled = false;
 let pairReplyEnabled = false;
 let pairReplyTriggered = false;
@@ -473,12 +488,44 @@ fighterSelect.addEventListener('change', () => {
   selectedFighter = fighterSelect.value;
   state.fighters[0].charId = selectedFighter;
   prevState.fighters[0].charId = selectedFighter;
-  renderer.rebuildFighter(0, selectedFighter, 0, selectedCostume);
+  renderer.rebuildFighter(0, selectedFighter, selectedPalette, selectedCostume);
   syncScrubberUI();
 });
 
+paletteSelect.addEventListener('change', () => {
+  selectedPalette = Number(paletteSelect.value);
+  state.fighters[0].paletteIdx = selectedPalette;
+  prevState.fighters[0].paletteIdx = selectedPalette;
+  renderer.setPalette(0, selectedPalette);
+});
+
+skinSelect.addEventListener('change', () => {
+  selectedCostume = skinSelect.value as CostumeId;
+  state.fighters[0].costume = selectedCostume;
+  prevState.fighters[0].costume = selectedCostume;
+  renderer.setCostume(0, selectedCostume);
+  btnMaculele.classList.toggle('active', selectedCostume === 'maculele');
+});
+
+styleSelect.addEventListener('change', () => {
+  manualStyleSelected = true;
+  renderer.setStyle(styleSelect.value as VisualStyleId);
+});
+
+filterSelect.addEventListener('change', () => {
+  const next = filterSelect.value as VisualFilterId;
+  renderer.setFilter(next);
+  btnRetro.classList.toggle('active', next === 'crt');
+});
+
 gravitySelect.addEventListener('change', () => {
-  state.config.gravityScale = Number(gravitySelect.value);
+  const g = Number(gravitySelect.value);
+  state.config.gravityScale = g;
+  if (!manualStyleSelected) {
+    const autoStyle: VisualStyleId = Math.abs(g - 0.165) < 0.01 ? 'lunar' : 'sf2';
+    styleSelect.value = autoStyle;
+    renderer.setStyle(autoStyle);
+  }
   playSelectedMove();
 });
 
@@ -486,6 +533,7 @@ btnMaculele.addEventListener('click', () => {
   selectedCostume = selectedCostume === 'maculele' ? 'default' : 'maculele';
   state.fighters[0].costume = selectedCostume;
   prevState.fighters[0].costume = selectedCostume;
+  skinSelect.value = selectedCostume;
   renderer.setCostume(0, selectedCostume);
   btnMaculele.classList.toggle('active', selectedCostume === 'maculele');
 });
@@ -519,9 +567,10 @@ btnHitboxes.addEventListener('click', () => {
 });
 
 btnRetro.addEventListener('click', () => {
-  const next = !renderer.isRetroMode();
-  renderer.setRetroMode(next);
-  btnRetro.classList.toggle('active', next);
+  const next: VisualFilterId = renderer.isRetroMode() ? 'none' : 'crt';
+  renderer.setFilter(next);
+  filterSelect.value = next;
+  btnRetro.classList.toggle('active', next === 'crt');
 });
 
 btnCamReset.addEventListener('click', () => {
@@ -599,10 +648,19 @@ canvasMount.addEventListener(
   { passive: false },
 );
 
-// Handle initial query parameter e.g. moves.html?move=meia_lua_compasso&view=matrix
+// Handle initial query parameter e.g. moves.html?move=meia_lua_compasso&view=matrix&dummy=1
 const urlParams = new URLSearchParams(window.location.search);
 const initMove = urlParams.get('move');
 const initView = urlParams.get('view');
+if (urlParams.get('dummy') === '1' || urlParams.get('pair') === '1') {
+  dummyEnabled = true;
+  btnDummy.classList.add('active');
+  renderer.setFighterVisible(1, true);
+}
+if (urlParams.get('pair') === '1') {
+  pairReplyEnabled = true;
+  btnPair.classList.add('active');
+}
 
 renderSidebarMoves();
 renderComparisonMatrix();

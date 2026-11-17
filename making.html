@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#140c1f" />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='28' fill='%23c84e31' stroke='%23ffd166' stroke-width='5'/><text x='32' y='42' font-size='30' text-anchor='middle' fill='%23ffd166'>⚡</text></svg>"
+    />
+    <title>How Roda Orbital Was Made — Playable Iterations &amp; All 116 Moves</title>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <div class="header-inner">
+          <a class="brand-link" href="./index.html">
+            <span>⚡ RODA ORBITAL</span>
+            <span class="brand-tag">EVOLUTION</span>
+          </a>
+
+          <nav class="site-nav" aria-label="Primary">
+            <button
+              type="button"
+              class="menu-button"
+              popovertarget="site-menu"
+              aria-controls="site-menu"
+              aria-expanded="false"
+            >
+              <span class="menu-icon" aria-hidden="true">☰</span>
+              <span>Menu</span>
+            </button>
+
+            <ul id="site-menu" class="site-menu" popover="auto">
+              <li><a href="./index.html">⚔️ Play Arena</a></li>
+              <li><a href="./making.html" aria-current="page">🛠 Story &amp; 116 Moves</a></li>
+              <li><a href="./moves.html">🕺 Move Showcase (116)</a></li>
+              <li><a href="./tutorial.html">❓ How to Play</a></li>
+              <li><a href="./history.html">📜 History</a></li>
+            </ul>
+          </nav>
+        </div>
+      </header>
+
+      <main class="making-main">
+        <section class="hero-card" aria-labelledby="making-title">
+          <p class="hero-eyebrow">Interactive Development Chronicle · Commit History to Live GitHub Pages</p>
+          <h1 id="making-title">How Roda Orbital Was Built</h1>
+          <p class="hero-lead">
+            Explore every major build milestone from the first fixed-point lunar combat prototype through Street
+            Fighter II cel-shading, the 116-move Capoeira encyclopedia, cooperative <em>Jogar na Roda</em> duets, and
+            our 3-tier graphics overhaul. Switch tabs to play each iteration right inside this page or launch full screen.
+          </p>
+          <div class="summary-stats" id="making-summary-pills">
+            <span class="stat-pill">✓ 5 Playable Build Eras</span>
+            <span class="stat-pill">✓ 116 Integrated Capoeira Moves</span>
+          </div>
+          <div class="hero-actions">
+            <a class="cta-button" href="./index.html?era=v5">▶ Play Latest Build (v5)</a>
+            <a class="cta-button secondary" href="#integrated-moves">📚 Browse All 116 Integrated Moves</a>
+          </div>
+        </section>
+
+        <section class="iter-tabs-section" aria-labelledby="iterations-heading">
+          <h2 id="iterations-heading">Playable Development Iterations</h2>
+
+          <div class="iter-tablist" role="tablist" focusgroup="tablist nomemory" aria-label="Development iterations">
+            <button type="button" role="tab" id="tab-v1" data-era="v1" aria-selected="true" focusgroupstart>
+              <span class="iter-tab-num">1</span>
+              <span>Core Gravity &amp; Roda</span>
+            </button>
+            <button type="button" role="tab" id="tab-v2" data-era="v2" tabindex="-1">
+              <span class="iter-tab-num">2</span>
+              <span>SF2 Cel &amp; 2-Bone IK</span>
+            </button>
+            <button type="button" role="tab" id="tab-v3" data-era="v3" tabindex="-1">
+              <span class="iter-tab-num">3</span>
+              <span>114-Move Encyclopedia</span>
+            </button>
+            <button type="button" role="tab" id="tab-v4" data-era="v4" tabindex="-1">
+              <span class="iter-tab-num">4</span>
+              <span>Jogar na Roda &amp; History</span>
+            </button>
+            <button type="button" role="tab" id="tab-v5" data-era="v5" tabindex="-1">
+              <span class="iter-tab-num">5</span>
+              <span>Flow, Skins &amp; 3D Overhaul</span>
+            </button>
+          </div>
+
+          <div class="iter-panels-grid" id="iter-panels-grid">
+            <!-- Iteration 1 -->
+            <section role="tabpanel" id="panel-v1" data-era="v1" aria-labelledby="tab-v1" tabindex="0">
+              <div class="iter-panel-card">
+                <div class="iter-head">
+                  <div>
+                    <div class="iter-kicker">
+                      <span>Iteration 1 · Foundation</span>
+                      <span class="commit-chip">git 9096342</span>
+                    </div>
+                    <h3>Gravity Engine &amp; Core Roda (17 Moves)</h3>
+                  </div>
+                  <a class="mini-btn" href="./index.html?era=v1">↗ Play v1 Fullscreen</a>
+                </div>
+                <div class="iter-layout">
+                  <div class="iter-story-col">
+                    <p>
+                      Roda Orbital started as a 60 Hz deterministic fixed-point Capoeira fighting engine built around three
+                      stances (<code>GINGA</code>, <code>HSP</code> Bananeira, <code>RLX</code> Negativa), high/low/throw
+                      crush mechanics, and Moon <code>0.165g</code> low-gravity air juggles with full iPad touch input.
+                    </p>
+                    <ul class="iter-highlights">
+                      <li>21-bone forward kinematics skeleton with swept bone-capsule hit detection.</li>
+                      <li>17 foundational techniques: Ginga, Ponteira, Bênção, Compasso, Aú Batido, Rasteira, Pião.</li>
+                      <li>On-screen iPad thumbstick + 5-button arcade pad alongside desktop keyboard controls.</li>
+                      <li>Live wireframe hitbox/hurtbox toggle (<kbd>F3</kbd>) &amp; Lunar 0.165g orbit arena.</li>
+                    </ul>
+                    <div class="iter-moves-chips" id="chips-v1"></div>
+                  </div>
+                  <div class="iter-stage-card">
+                    <div class="iter-stage-toolbar">
+                      <span style="font-size:.82rem;font-weight:700;color:var(--accent-gold)">
+                        🌙 Preset: Lunar 0.165g · Hitboxes ON · Faísca vs Touro
+                      </span>
+                      <button type="button" class="mini-btn secondary" data-stop-era="v1" hidden>✕ Stop Preview</button>
+                    </div>
+                    <div class="iter-viewport" id="viewport-v1"></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Iteration 2 -->
+            <section role="tabpanel" id="panel-v2" data-era="v2" aria-labelledby="tab-v2" hidden="until-found">
+              <div class="iter-panel-card">
+                <div class="iter-head">
+                  <div>
+                    <div class="iter-kicker">
+                      <span>Iteration 2 · Arcade Visuals &amp; IK</span>
+                      <span class="commit-chip">git 94e729d</span>
+                    </div>
+                    <h3>SF2 Cel-Shading, 2-Bone IK &amp; Full 10-Fighter Roster</h3>
+                  </div>
+                  <a class="mini-btn" href="./index.html?era=v2">↗ Play v2 Fullscreen</a>
+                </div>
+                <div class="iter-layout">
+                  <div class="iter-story-col">
+                    <p>
+                      To bring arcade fighting clarity to Capoeira's swirling inversions, Iteration 2 introduced custom
+                      4-band Street Fighter II toon lighting, ink outlines, 2-bone foot &amp; palm ground IK pinning,
+                      Verlet spring ribbons, and 10 distinct fighters.
+                    </p>
+                    <ul class="iter-highlights">
+                      <li>Continuous 4-bone skinned torso, deltoids, arms, and draped cotton abadá trousers.</li>
+                      <li>Analytical 2-bone IK pinning grounded feet and Bananeira palms cleanly to <code>y = 0</code>.</li>
+                      <li>Starburst hit flashes, limb smear trails, hitstop stun shakes, and CPS-1 Arcade CRT shader.</li>
+                    </ul>
+                    <div class="iter-moves-chips" id="chips-v2"></div>
+                  </div>
+                  <div class="iter-stage-card">
+                    <div class="iter-stage-toolbar">
+                      <span style="font-size:.82rem;font-weight:700;color:var(--accent-gold)">
+                        📺 Preset: CPS-1 CRT Filter · Bahia Sunset · Faísca vs Morcego
+                      </span>
+                      <button type="button" class="mini-btn secondary" data-stop-era="v2" hidden>✕ Stop Preview</button>
+                    </div>
+                    <div class="iter-viewport" id="viewport-v2"></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Iteration 3 -->
+            <section role="tabpanel" id="panel-v3" data-era="v3" aria-labelledby="tab-v3" hidden="until-found">
+              <div class="iter-panel-card">
+                <div class="iter-head">
+                  <div>
+                    <div class="iter-kicker">
+                      <span>Iteration 3 · Encyclopedia</span>
+                      <span class="commit-chip">git 413561c</span>
+                    </div>
+                    <h3>3D Move Showcase &amp; 114-Technique Library (+97 Moves)</h3>
+                  </div>
+                  <a class="mini-btn" href="./moves.html?move=meia_lua_compasso&dummy=1">↗ Open 3D Showcase</a>
+                </div>
+                <div class="iter-layout">
+                  <div class="iter-story-col">
+                    <p>
+                      Iteration 3 integrated 97 additional moves—completing 100% 1-to-1 coverage of both Mudroljub's
+                      catalog (90 active / 93 total) and Minhoquinho's 52 movement videos—inside an interactive
+                      360° 3D Move Animator with single-frame scrubbing and training lab support.
+                    </p>
+                    <ul class="iter-highlights">
+                      <li>Every Aú variation, Escorpião kick, Queda de Rins transition, Tesoura, and Mortal somersault.</li>
+                      <li>Interactive 360° orbit stage, frame scrubber, slow-motion speed control, and auto-tour.</li>
+                      <li>Training Arena link (<a href="./index.html?era=v3" style="color:var(--accent-gold)">v3 Training</a>) lets you chain all moves live with hitboxes visible.</li>
+                    </ul>
+                    <div class="iter-moves-chips" id="chips-v3"></div>
+                  </div>
+                  <div class="iter-stage-card">
+                    <div class="iter-stage-toolbar">
+                      <span style="font-size:.82rem;font-weight:700;color:var(--accent-gold)">
+                        🕺 Preset: Interactive 3D Move Animator &amp; Dummy Partner
+                      </span>
+                      <button type="button" class="mini-btn secondary" data-stop-era="v3" hidden>✕ Stop Preview</button>
+                    </div>
+                    <div class="iter-viewport" id="viewport-v3"></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Iteration 4 -->
+            <section role="tabpanel" id="panel-v4" data-era="v4" aria-labelledby="tab-v4" hidden="until-found">
+              <div class="iter-panel-card">
+                <div class="iter-head">
+                  <div>
+                    <div class="iter-kicker">
+                      <span>Iteration 4 · Culture &amp; Duet</span>
+                      <span class="commit-chip">git db8f50d</span>
+                    </div>
+                    <h3>Jogar na Roda (Play / Show Mode), Tutorial &amp; History</h3>
+                  </div>
+                  <a class="mini-btn" href="./index.html?era=v4">↗ Play v4 Fullscreen</a>
+                </div>
+                <div class="iter-layout">
+                  <div class="iter-story-col">
+                    <p>
+                      Capturing the essence of Capoeira's cooperative circle, Iteration 4 built Play / Show Mode: partners
+                      exchange synchronized kicks and duck/cartwheel replies with zero damage while building the shared
+                      <em>Axé</em> streak meter—paired with our Tutorial &amp; History guides.
+                    </p>
+                    <ul class="iter-highlights">
+                      <li>Pergunta &amp; Resposta choreographed dialogue AI across 18 classic sequences and move-specific counters.</li>
+                      <li>Zero-KO cooperative mode with instant <kbd>F1</kbd> mid-duet human takeover.</li>
+                      <li>Published dedicated <a href="./tutorial.html" style="color:var(--accent-gold)">How to Play</a> manual and <a href="./history.html" style="color:var(--accent-gold)">History of Capoeira</a> heritage page.</li>
+                    </ul>
+                    <div class="iter-moves-chips" id="chips-v4"></div>
+                  </div>
+                  <div class="iter-stage-card">
+                    <div class="iter-stage-toolbar">
+                      <span style="font-size:.82rem;font-weight:700;color:var(--accent-gold)">
+                        🤝 Preset: Play / Show Duet · Toque Angola · Faísca vs Mestre Jacaré
+                      </span>
+                      <button type="button" class="mini-btn secondary" data-stop-era="v4" hidden>✕ Stop Preview</button>
+                    </div>
+                    <div class="iter-viewport" id="viewport-v4"></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Iteration 5 -->
+            <section role="tabpanel" id="panel-v5" data-era="v5" aria-labelledby="tab-v5" hidden="until-found">
+              <div class="iter-panel-card">
+                <div class="iter-head">
+                  <div>
+                    <div class="iter-kicker">
+                      <span>Iteration 5 · Latest Release</span>
+                      <span class="commit-chip">git main (head)</span>
+                    </div>
+                    <h3>Biomechanics, Style Flow, Skins, Filters &amp; 3D Visual Overhaul</h3>
+                  </div>
+                  <a class="mini-btn" href="./index.html?era=v5">↗ Play v5 Fullscreen</a>
+                </div>
+                <div class="iter-layout">
+                  <div class="iter-story-col">
+                    <p>
+                      Our latest release deepens martial movement and visual craft: counter-twist torso biomechanics,
+                      Angola vs Regional AI personalities (+ <em>Chamada</em> &amp; <em>Volta ao Mundo</em> rituals =
+                      116 moves), 5 stage aesthetics, 7 skins, 6 post-processing filters, and a full 3-tier graphics upgrade.
+                    </p>
+                    <ul class="iter-highlights">
+                      <li>Added Angola rituals Chamada &amp; Volta ao Mundo (+2 moves) and 36 flowing cancel routes.</li>
+                      <li>Selectable Berimbau Toques (Angola, São Bento Grande, Iúna), Lunar gravity &amp; P2 controls in Play Mode.</li>
+                      <li>Weighted socket outlines (zero shoulder dots), 16-strip Verlet Maculelê grass skirt, sculpted faces/boots.</li>
+                      <li>Spherical Lunar Earthrise, Salvador Pelourinho skyline, Sumi-e mountains, Noturna lights &amp; limb AO puddles.</li>
+                    </ul>
+                    <div class="iter-moves-chips" id="chips-v5"></div>
+                  </div>
+                  <div class="iter-stage-card">
+                    <div class="iter-stage-toolbar">
+                      <span style="font-size:.82rem;font-weight:700;color:var(--accent-gold)">
+                        🌙 Preset: Lunar 0.165g · Maculelê Grima vs Orbital EVA · Iúna Toque
+                      </span>
+                      <button type="button" class="mini-btn secondary" data-stop-era="v5" hidden>✕ Stop Preview</button>
+                    </div>
+                    <div class="iter-viewport" id="viewport-v5"></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <!-- Complete 116 Integrated Capoeira Moves Encyclopedia -->
+        <section class="doc-section" id="integrated-moves" aria-labelledby="moves-index-heading">
+          <h2 id="moves-index-heading">Complete Catalog of All 116 Integrated Capoeira Moves</h2>
+          <p>
+            Every movement integrated into <em>Roda Orbital</em> from Iteration 1 through Iteration 5—filterable by
+            development milestone, technique category, or external reference library (Mudroljub &amp; Minhoquinho). Click
+            any technique's <strong>3D View</strong> link to inspect keyframes, hit capsules, and paired replies interactively.
+          </p>
+
+          <div class="moves-controls">
+            <div class="moves-search-group">
+              <label class="sr-only" for="mk-search">Search integrated Capoeira moves</label>
+              <input
+                id="mk-search"
+                type="search"
+                placeholder="Search move name, translation, input, or follow-up…"
+              />
+              <label class="sr-only" for="mk-cat">Filter by move category</label>
+              <select id="mk-cat"></select>
+              <label class="sr-only" for="mk-source">Filter by reference library</label>
+              <select id="mk-source">
+                <option value="ALL">All Provenances</option>
+                <option value="MUDROJUB">In Mudroljub Catalog</option>
+                <option value="MINHOQUINHO">In Minhoquinho Videos</option>
+                <option value="ORIGINAL">Roda Orbital Originals ★</option>
+              </select>
+            </div>
+
+            <div class="iter-filter-chips" role="group" aria-label="Filter by iteration added">
+              <button type="button" class="filter-chip" data-iter="ALL" aria-pressed="true">All (116)</button>
+              <button type="button" class="filter-chip" data-iter="1" aria-pressed="false">Iter 1 · Core (17)</button>
+              <button type="button" class="filter-chip" data-iter="3" aria-pressed="false">Iter 3 · Library (+97)</button>
+              <button type="button" class="filter-chip" data-iter="5" aria-pressed="false">Iter 5 · Rituals (+2)</button>
+            </div>
+          </div>
+
+          <div class="moves-count-note" id="mk-count-note">Showing 116 of 116 integrated moves</div>
+
+          <div class="table-wrapper" tabindex="0" role="region" aria-labelledby="moves-index-heading">
+            <table class="moves-index-table">
+              <thead>
+                <tr>
+                  <th scope="col">Technique</th>
+                  <th scope="col">Iteration</th>
+                  <th scope="col">Category &amp; Command</th>
+                  <th scope="col">Frame Data</th>
+                  <th scope="col">Flow Routes</th>
+                  <th scope="col">Provenance</th>
+                  <th scope="col">Inspect 3D</th>
+                </tr>
+              </thead>
+              <tbody id="mk-tbody"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <div class="footer-inner">
+          <span>Roda Orbital — Open WebGL Capoeira Fighting Game &amp; Development Chronicle</span>
+          <nav class="footer-links" aria-label="Footer">
+            <a href="./index.html">Play Arena</a>
+            <a href="./making.html">Story &amp; 116 Moves</a>
+            <a href="./moves.html">Move Showcase</a>
+            <a href="./tutorial.html">How to Play</a>
+            <a href="./history.html">History of Capoeira</a>
+          </nav>
+        </div>
+      </footer>
+    </div>
+
+    <script type="module" src="/src/making.ts"></script>
+  </body>
+</html>

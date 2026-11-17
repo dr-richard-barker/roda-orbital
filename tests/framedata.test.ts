@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { newFK } from '../src/anim/pose';
 import { ROSTER } from '../src/data/characters';
+import { CHAR_FIGHTING_PROFILES } from '../src/data/fightingStyles';
 import { getCoverageSummary, MINHOQUINHO_MOVES, MUDROJUB_MOVES } from '../src/data/moveCatalog';
 import { MOVE_BY_ID, MOVES } from '../src/data/moves';
 import { POSE_TRACKS } from '../src/data/poses';
@@ -88,6 +89,29 @@ describe('Move & Frame Data Integrity', () => {
         for (let i = 0; i < fk.joints.length; i++) {
           expect(Number.isFinite(fk.joints[i]), `NaN joint in ${char.id}/${move.id}`).toBe(true);
           expect(Number.isFinite(fk.tips[i]), `NaN tip in ${char.id}/${move.id}`).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('gives every roster fighter a valid style profile with cancel-connected FlowCombos', () => {
+    for (const char of ROSTER) {
+      const prof = CHAR_FIGHTING_PROFILES[char.id];
+      expect(prof, `Missing CHAR_FIGHTING_PROFILES entry for ${char.id}`).toBeDefined();
+      expect(prof.combos.length).toBeGreaterThanOrEqual(3);
+
+      for (const combo of prof.combos) {
+        expect(combo.steps.length).toBeGreaterThanOrEqual(2);
+        const firstMove = MOVE_BY_ID[combo.steps[0]];
+        expect(firstMove, `Invalid combo step ${combo.steps[0]} in ${combo.id}`).toBeDefined();
+        expect(firstMove.from.includes(combo.startStance)).toBe(true);
+
+        for (let i = 0; i < combo.steps.length - 1; i++) {
+          const curr = MOVE_BY_ID[combo.steps[i]];
+          const nextId = combo.steps[i + 1];
+          expect(MOVE_BY_ID[nextId], `Missing next step ${nextId} in ${combo.id}`).toBeDefined();
+          const hasLink = curr.cancels.some((c) => c.into === nextId);
+          expect(hasLink, `Missing CancelRule ${curr.id} -> ${nextId} in ${combo.id}`).toBe(true);
         }
       }
     }

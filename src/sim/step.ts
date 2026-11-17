@@ -1,11 +1,12 @@
 // Main 60 Hz deterministic simulation step.
+import { applyBiomechanicalKinetics } from '../anim/kinetics';
 import { blendPose, computeFK, emptyPose, newFK, sampleTrack, type FK, type Pose } from '../anim/pose';
 import { clamp, vnorm } from '../core/fixedmath';
 import { charById } from '../data/characters';
 import { MOVE_BY_ID, MOVES, type MoveDef, type Stance } from '../data/moves';
 import { POSE_TRACKS } from '../data/poses';
 import { scaleSkeleton } from '../data/skeleton';
-import { localToWorld, resolvePushboxes } from './collision';
+import { computePairPushSeparation, localToWorld, resolvePushboxes } from './collision';
 import { resolveCombat } from './combat';
 import {
   BTN_LH,
@@ -30,14 +31,27 @@ const STANCE_CYCLE: Record<Stance, Stance> = {
 
 const scratchPoseA = emptyPose();
 const scratchPoseB = emptyPose();
+const cachedSkeletons: Record<string, ReturnType<typeof scaleSkeleton>> = {};
+
+function getSkel(charId: string) {
+  let sk = cachedSkeletons[charId];
+  if (!sk) {
+    sk = scaleSkeleton(charById(charId).body);
+    cachedSkeletons[charId] = sk;
+  }
+  return sk;
+}
 
 /** Evaluate the current Pose for a fighter (shared by sim FK and Three.js renderer). */
-export function evaluateFighterPose(f: FighterState, out: Pose, globalFrame: number): Pose {
+export function evaluateFighterPose(f: FighterState, out: Pose, globalFrame: number, opp?: FighterState): Pose {
   if (f.mode === 'ATTACK' && f.moveId) {
     const move = MOVE_BY_ID[f.moveId];
     if (move) {
       const tr = POSE_TRACKS[move.poseId];
-      if (tr) return sampleTrack(tr, f.moveFrame, out);
+      if (tr) {
+        sampleTrack(tr, f.moveFrame, out);
+        return applyBiomechanicalKinetics(out, getSkel(f.charId), f, opp);
+      }
     }
   }
   if (f.mode === 'SHIFT' && f.shiftTo) {
@@ -46,27 +60,34 @@ export function evaluateFighterPose(f: FighterState, out: Pose, globalFrame: num
     sampleTrack(fromTr, globalFrame, scratchPoseA);
     sampleTrack(toTr, globalFrame, scratchPoseB);
     const w = clamp(f.modeFrame / Math.max(1, f.shiftDuration), 0, 1);
-    return blendPose(scratchPoseA, scratchPoseB, w, out);
+    blendPose(scratchPoseA, scratchPoseB, w, out);
+    return applyBiomechanicalKinetics(out, getSkel(f.charId), f, opp);
   }
   if (f.mode === 'BLOCKSTUN') {
-    return sampleTrack(f.stance === 'RLX' ? POSE_TRACKS.GUARD_LOW : POSE_TRACKS.GUARD_HIGH, f.modeFrame, out);
+    sampleTrack(f.stance === 'RLX' ? POSE_TRACKS.GUARD_LOW : POSE_TRACKS.GUARD_HIGH, f.modeFrame, out);
+    return applyBiomechanicalKinetics(out, getSkel(f.charId), f, opp);
   }
   if (f.mode === 'HITSTUN') {
     const tr = f.lastHitLevel === 'HIGH' ? POSE_TRACKS.HITSTUN_HIGH : POSE_TRACKS.HITSTUN_MID;
-    return sampleTrack(tr ?? POSE_TRACKS.HITSTUN, f.modeFrame, out);
+    sampleTrack(tr ?? POSE_TRACKS.HITSTUN, f.modeFrame, out);
+    return applyBiomechanicalKinetics(out, getSkel(f.charId), f, opp);
   }
   if (f.mode === 'JUGGLE') {
-    return sampleTrack(POSE_TRACKS.AIR, f.modeFrame, out);
+    sampleTrack(POSE_TRACKS.AIR, f.modeFrame, out);
+    return applyBiomechanicalKinetics(out, getSkel(f.charId), f, opp);
   }
   if (f.mode === 'KNOCKDOWN' || f.mode === 'KO') {
-    return sampleTrack(POSE_TRACKS.KNOCKDOWN, f.modeFrame, out);
+    sampleTrack(POSE_TRACKS.KNOCKDOWN, f.modeFrame, out);
+    return applyBiomechanicalKinetics(out, getSkel(f.charId), f, opp);
   }
   if (f.mode === 'WALK') {
     const tr = f.walkDir < 0 ? POSE_TRACKS.WALK_BACK : POSE_TRACKS.WALK_FWD;
-    return sampleTrack(tr, f.modeFrame, out);
+    sampleTrack(tr, f.modeFrame, out);
+    return applyBiomechanicalKinetics(out, getSkel(f.charId), f, opp);
   }
   const stanceTr = POSE_TRACKS[f.stance] ?? POSE_TRACKS.GINGA;
-  return sampleTrack(stanceTr, globalFrame, out);
+  sampleTrack(stanceTr, globalFrame, out);
+  return applyBiomechanicalKinetics(out, getSkel(f.charId), f, opp);
 }
 
 // ---------------------------------------------------------------------------
@@ -348,6 +369,9 @@ function stepFighter(state: MatchState, f: FighterState, opp: FighterState, inp:
       }
 
       if (!canceled && f.moveFrame >= move.totalFrames) {
+        if (move.id === 'chamada' || move.id === 'volta_ao_mundo') {
+          f.malicia = clamp(f.malicia + 4, 0, 100);
+        }
         f.stance = move.endStance;
         f.mode = 'IDLE';
         f.modeFrame = 0;
@@ -421,16 +445,6 @@ function stepFighter(state: MatchState, f: FighterState, opp: FighterState, inp:
 
 const fks: [FK, FK] = [newFK(), newFK()];
 const poses: [Pose, Pose] = [emptyPose(), emptyPose()];
-const cachedSkeletons: Record<string, ReturnType<typeof scaleSkeleton>> = {};
-
-function getSkel(charId: string) {
-  let sk = cachedSkeletons[charId];
-  if (!sk) {
-    sk = scaleSkeleton(charById(charId).body);
-    cachedSkeletons[charId] = sk;
-  }
-  return sk;
-}
 
 export function step(state: MatchState, inputs: [InputFrame, InputFrame]): MatchState {
   state.events.length = 0;
@@ -496,18 +510,24 @@ export function step(state: MatchState, inputs: [InputFrame, InputFrame]): Match
   stepFighter(state, state.fighters[0], state.fighters[1], inputs[0]);
   stepFighter(state, state.fighters[1], state.fighters[0], inputs[1]);
 
-  // Pushboxes & arena clamp (keep wider graceful showcase breathing room in SHOW mode)
+  // Pushboxes & arena clamp (prevent close-range Ginga clipping while permitting throw/aerial windows)
+  const pushSep = computePairPushSeparation(
+    state.fighters[0],
+    state.fighters[1],
+    state.config.playMode ?? 'VERSUS',
+  );
   resolvePushboxes(
     state.fighters[0],
     state.fighters[1],
     state.config.arenaRadius,
-    state.config.playMode === 'SHOW' ? 0.95 : 0.62,
+    pushSep,
   );
 
   // Compute FK for both fighters using exact same poses as renderer
   for (let i = 0; i < 2; i++) {
     const f = state.fighters[i];
-    evaluateFighterPose(f, poses[i], state.frame);
+    const opp = state.fighters[1 - i];
+    evaluateFighterPose(f, poses[i], state.frame, opp);
     computeFK(poses[i], getSkel(f.charId), f.pos, f.facing[0], f.facing[1], fks[i]);
   }
 
@@ -535,9 +555,9 @@ export function step(state: MatchState, inputs: [InputFrame, InputFrame]): Match
 }
 
 /** Expose last computed FK for debug hitbox rendering without duplicating FK work. */
-export function computeFighterFK(f: FighterState, globalFrame: number, outFK: FK): FK {
+export function computeFighterFK(f: FighterState, globalFrame: number, outFK: FK, opp?: FighterState): FK {
   const p = emptyPose();
-  evaluateFighterPose(f, p, globalFrame);
+  evaluateFighterPose(f, p, globalFrame, opp);
   return computeFK(p, getSkel(f.charId), f.pos, f.facing[0], f.facing[1], outFK);
 }
 

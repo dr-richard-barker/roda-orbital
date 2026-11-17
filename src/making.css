@@ -1,0 +1,479 @@
+/* Styling for Making Of & Playable Iterations + Complete 116-Move Encyclopedia */
+
+@property --fade-start {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --fade-end {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+.making-main {
+  max-inline-size: 1240px;
+  inline-size: 100%;
+  margin-inline: auto;
+  padding-block: clamp(1rem, 2.5vw, 1.85rem) 2.5rem;
+  padding-inline: clamp(1rem, 3vw, 2rem);
+  display: grid;
+  gap: 1.4rem;
+}
+
+.summary-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(94, 234, 212, 0.12);
+  border: 1px solid rgba(94, 234, 212, 0.36);
+  color: var(--accent-cyan);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Horizontal Single-Row Accessible Iteration Tabs (modern-web-guidance)      */
+/* -------------------------------------------------------------------------- */
+
+.iter-tabs-section {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.iter-tablist {
+  display: flex;
+  gap: 0.45rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: inline proximity;
+  scroll-padding-inline: 2.5rem;
+  scrollbar-width: none;
+  padding-block-end: 0.2rem;
+  border-block-end: 1px solid var(--border-subtle);
+
+  --fade-size: 2.5rem;
+  --fade-dir: right;
+  --fade-start-pos: 0;
+  --fade-end-pos: 100%;
+  mask:
+    linear-gradient(black, black) no-clip subtract,
+    linear-gradient(to var(--fade-dir), black, transparent) var(--fade-start-pos) 0 / var(--fade-start) 100% no-repeat no-clip,
+    linear-gradient(to var(--fade-dir), transparent, black) var(--fade-end-pos) 0 / var(--fade-end) 100% no-repeat no-clip;
+  animation: reveal-tab-fade-start linear both, hide-tab-fade-end linear both;
+  animation-timeline: scroll(self inline);
+  animation-range: 0 var(--fade-size), calc(100% - var(--fade-size)) 100%;
+}
+
+.iter-tablist::-webkit-scrollbar {
+  display: none;
+}
+
+.iter-tablist:dir(rtl) {
+  --fade-dir: left;
+  --fade-start-pos: 100%;
+  --fade-end-pos: 0;
+}
+
+@keyframes reveal-tab-fade-start {
+  to {
+    --fade-start: var(--fade-size);
+  }
+}
+
+@keyframes hide-tab-fade-end {
+  from {
+    --fade-end: var(--fade-size);
+  }
+}
+
+/* Dimension-invariant tab styling anchored to aria-selected + border-block-end shape */
+.iter-tab {
+  position: relative;
+  flex: none;
+  scroll-snap-align: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.68rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 10px 10px 0 0;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.iter-tab:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.iter-tab[aria-selected='true'] {
+  color: var(--accent-gold);
+  background: rgba(255, 209, 102, 0.12);
+}
+
+.iter-tab[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  border-block-end: 3px solid var(--accent-gold);
+}
+
+.iter-tab-num {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 1.45rem;
+  block-size: 1.45rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 0.74rem;
+}
+
+.iter-tab[aria-selected='true'] .iter-tab-num {
+  background: var(--accent-gold);
+  color: #160c0e;
+}
+
+/* Single grid cell for panels; zero padding/border directly on hidden=until-found elements */
+.iter-panels-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.iter-panels-grid > [role='tabpanel'] {
+  grid-area: 1 / 1;
+}
+
+.iter-panel-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: clamp(1rem, 2.4vw, 1.5rem);
+  display: grid;
+  gap: 1.15rem;
+}
+
+.iter-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.85rem;
+}
+
+.iter-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent-amber);
+}
+
+.commit-chip {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-subtle);
+  color: var(--accent-cyan);
+}
+
+.iter-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.25fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .iter-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.iter-story-col {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.iter-story-col p {
+  color: var(--text-muted);
+  font-size: 0.94rem;
+}
+
+.iter-highlights {
+  margin: 0;
+  padding-inline-start: 1.2rem;
+  display: grid;
+  gap: 0.42rem;
+  color: var(--text-main);
+  font-size: 0.88rem;
+}
+
+.iter-moves-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.iter-move-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.28rem 0.62rem;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  border: 1px solid rgba(255, 209, 102, 0.34);
+  color: var(--accent-gold);
+  text-decoration: none;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.iter-move-pill:hover {
+  background: rgba(255, 209, 102, 0.16);
+}
+
+/* Embedded Playable Iteration Viewport */
+.iter-stage-card {
+  background: #0d0714;
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: grid;
+}
+
+.iter-stage-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.iter-stage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.iter-viewport {
+  position: relative;
+  min-block-size: clamp(290px, 42dvh, 460px);
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 50% 35%, rgba(200, 78, 49, 0.22), #090510 72%);
+}
+
+.iter-poster {
+  padding: 1.5rem;
+  text-align: center;
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  max-inline-size: 46ch;
+}
+
+.iter-poster strong {
+  color: var(--accent-gold);
+  font-size: 1.02rem;
+}
+
+.iter-poster p {
+  color: var(--text-muted);
+  font-size: 0.86rem;
+}
+
+.iter-iframe {
+  inline-size: 100%;
+  block-size: clamp(320px, 46dvh, 480px);
+  border: 0;
+  display: block;
+  background: #090510;
+}
+
+.mini-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.42rem 0.78rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 209, 102, 0.45);
+  background: linear-gradient(180deg, #ffd166, #f4a261);
+  color: #160c0e;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.mini-btn.secondary {
+  background: var(--bg-elevated);
+  color: var(--text-main);
+  border-color: var(--border-subtle);
+}
+
+.mini-btn.secondary:hover {
+  border-color: rgba(255, 209, 102, 0.5);
+}
+
+.mini-btn:hover {
+  filter: brightness(1.06);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Complete 116-Move Capoeira Index                                           */
+/* -------------------------------------------------------------------------- */
+
+.moves-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.moves-search-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  flex: 1 1 320px;
+}
+
+.moves-controls input,
+.moves-controls select {
+  padding: 0.48rem 0.72rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background: #140c1f;
+  color: var(--text-main);
+  font: inherit;
+  font-size: 0.86rem;
+}
+
+.moves-controls input {
+  flex: 1 1 220px;
+  min-inline-size: 160px;
+}
+
+.iter-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.filter-chip {
+  padding: 0.36rem 0.72rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.filter-chip[aria-pressed='true'] {
+  background: rgba(255, 209, 102, 0.18);
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+.moves-count-note {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.era-tag {
+  display: inline-block;
+  padding: 0.14rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.era-1 {
+  background: rgba(96, 165, 250, 0.16);
+  color: #93c5fd;
+  border: 1px solid rgba(96, 165, 250, 0.4);
+}
+
+.era-3 {
+  background: rgba(74, 222, 128, 0.14);
+  color: #86efac;
+  border: 1px solid rgba(74, 222, 128, 0.38);
+}
+
+.era-5 {
+  background: rgba(255, 209, 102, 0.18);
+  color: #ffd166;
+  border: 1px solid rgba(255, 209, 102, 0.48);
+}
+
+.prov-tag {
+  display: inline-block;
+  padding: 0.1rem 0.38rem;
+  border-radius: 5px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-inline-end: 0.24rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
+}
+
+.cancel-chain {
+  color: var(--accent-cyan);
+  font-size: 0.78rem;
+}
+
+.moves-index-table {
+  --label-2: 'Iteration';
+  --label-3: 'Category & Command';
+  --label-4: 'Frame Data';
+}
+
+@container (width < 600px) {
+  .table-wrapper .moves-index-table tbody td:nth-child(n)::before {
+    content: attr(data-label) ': ';
+    font-weight: 700;
+    color: var(--accent-gold);
+  }
+}
+
+@media (forced-colors: active) {
+  .iter-tab[aria-selected='true']::after {
+    border-block-end-color: Highlight;
+  }
+
+  .filter-chip[aria-pressed='true'] {
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+  }
+}

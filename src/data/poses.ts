@@ -120,6 +120,8 @@ export const POSE_TRACKS: Record<string, Track> = {
   queda_de_quatro: evasions.TRACK_QUEDA_DE_QUATRO,
   queda_de_rins: evasions.TRACK_QUEDA_DE_RINS,
   relogio: evasions.TRACK_RELOGIO,
+  chamada: evasions.TRACK_CHAMADA,
+  volta_ao_mundo: evasions.TRACK_VOLTA_MUNDO,
 
   // Takedowns & sweeps
   rasteira: takedowns.TRACK_RASTEIRA,

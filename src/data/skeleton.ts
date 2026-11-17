@@ -11,11 +11,11 @@
 import type { Vec3 } from '../core/fixedmath';
 
 export const BONES = [
-  'pelvis', 'spine', 'chest', 'head',
-  'upperArmL', 'foreArmL', 'handL',
-  'upperArmR', 'foreArmR', 'handR',
-  'thighL', 'shinL', 'footL',
-  'thighR', 'shinR', 'footR',
+  'pelvis', 'spine', 'chest', 'neck', 'head',
+  'clavicleL', 'upperArmL', 'foreArmL', 'handL',
+  'clavicleR', 'upperArmR', 'foreArmR', 'handR',
+  'thighL', 'shinL', 'footL', 'toeL',
+  'thighR', 'shinR', 'footR', 'toeR',
 ] as const;
 export type BoneId = (typeof BONES)[number];
 export const BONE_INDEX: Record<BoneId, number> = Object.fromEntries(BONES.map((b, i) => [b, i])) as Record<BoneId, number>;
@@ -35,21 +35,26 @@ export const SKELETON: BoneDef[] = [
   { id: 'pelvis', parent: null, offset: [0, 0, 0], seg: [0, 0.12, 0], radius: 0.13, group: 'torso' },
   { id: 'spine', parent: 'pelvis', offset: [0, 0.1, 0], seg: [0, 0.2, 0], radius: 0.12, group: 'torso' },
   { id: 'chest', parent: 'spine', offset: [0, 0.2, 0], seg: [0, 0.2, 0], radius: 0.15, group: 'torso' },
-  { id: 'head', parent: 'chest', offset: [0, 0.26, 0], seg: [0, 0.22, 0], radius: 0.11, group: 'head' },
+  { id: 'neck', parent: 'chest', offset: [0, 0.2, 0], seg: [0, 0.07, 0], radius: 0.056, group: 'head' },
+  { id: 'head', parent: 'neck', offset: [0, 0.07, 0], seg: [0, 0.21, 0], radius: 0.11, group: 'head' },
 
-  { id: 'upperArmL', parent: 'chest', offset: [0.2, 0.2, 0], seg: [0, -0.29, 0], radius: 0.055, group: 'arm' },
+  { id: 'clavicleL', parent: 'chest', offset: [0.05, 0.19, 0.01], seg: [0.15, 0.01, -0.01], radius: 0.048, group: 'torso' },
+  { id: 'upperArmL', parent: 'clavicleL', offset: [0.15, 0.01, -0.01], seg: [0, -0.29, 0], radius: 0.055, group: 'arm' },
   { id: 'foreArmL', parent: 'upperArmL', offset: [0, -0.29, 0], seg: [0, -0.26, 0], radius: 0.045, group: 'arm' },
-  { id: 'handL', parent: 'foreArmL', offset: [0, -0.26, 0], seg: [0, -0.09, 0], radius: 0.045, group: 'arm' },
-  { id: 'upperArmR', parent: 'chest', offset: [-0.2, 0.2, 0], seg: [0, -0.29, 0], radius: 0.055, group: 'arm' },
+  { id: 'handL', parent: 'foreArmL', offset: [0, -0.26, 0], seg: [0, -0.09, 0], radius: 0.042, group: 'arm' },
+  { id: 'clavicleR', parent: 'chest', offset: [-0.05, 0.19, 0.01], seg: [-0.15, 0.01, -0.01], radius: 0.048, group: 'torso' },
+  { id: 'upperArmR', parent: 'clavicleR', offset: [-0.15, 0.01, -0.01], seg: [0, -0.29, 0], radius: 0.055, group: 'arm' },
   { id: 'foreArmR', parent: 'upperArmR', offset: [0, -0.29, 0], seg: [0, -0.26, 0], radius: 0.045, group: 'arm' },
-  { id: 'handR', parent: 'foreArmR', offset: [0, -0.26, 0], seg: [0, -0.09, 0], radius: 0.045, group: 'arm' },
+  { id: 'handR', parent: 'foreArmR', offset: [0, -0.26, 0], seg: [0, -0.09, 0], radius: 0.042, group: 'arm' },
 
   { id: 'thighL', parent: 'pelvis', offset: [0.1, -0.02, 0], seg: [0, -0.44, 0], radius: 0.075, group: 'leg' },
   { id: 'shinL', parent: 'thighL', offset: [0, -0.44, 0], seg: [0, -0.44, 0], radius: 0.055, group: 'leg' },
-  { id: 'footL', parent: 'shinL', offset: [0, -0.44, 0], seg: [0, -0.06, 0.17], radius: 0.045, group: 'leg' },
+  { id: 'footL', parent: 'shinL', offset: [0, -0.44, 0], seg: [0, -0.06, 0.11], radius: 0.042, group: 'leg' },
+  { id: 'toeL', parent: 'footL', offset: [0, -0.06, 0.11], seg: [0, -0.005, 0.075], radius: 0.036, group: 'leg' },
   { id: 'thighR', parent: 'pelvis', offset: [-0.1, -0.02, 0], seg: [0, -0.44, 0], radius: 0.075, group: 'leg' },
   { id: 'shinR', parent: 'thighR', offset: [0, -0.44, 0], seg: [0, -0.44, 0], radius: 0.055, group: 'leg' },
-  { id: 'footR', parent: 'shinR', offset: [0, -0.44, 0], seg: [0, -0.06, 0.17], radius: 0.045, group: 'leg' },
+  { id: 'footR', parent: 'shinR', offset: [0, -0.44, 0], seg: [0, -0.06, 0.11], radius: 0.042, group: 'leg' },
+  { id: 'toeR', parent: 'footR', offset: [0, -0.06, 0.11], seg: [0, -0.005, 0.075], radius: 0.036, group: 'leg' },
 ];
 
 /** Per-character proportions. All multipliers default to 1. */
@@ -75,10 +80,15 @@ export function scaleSkeleton(s: BodyScale): ScaledBone[] {
     const g = s[b.group];
     // limbs attach to torso: horizontal shoulder/hip offsets follow girth, vertical follow parent group
     const off: Vec3 = [b.offset[0] * s.height * s.girth, b.offset[1] * s.height * pg, b.offset[2] * s.height * pg];
+    const isClav = b.id === 'clavicleL' || b.id === 'clavicleR';
     return {
       parent: b.parent ? BONE_INDEX[b.parent] : -1,
       offset: off,
-      seg: [b.seg[0] * s.height * g, b.seg[1] * s.height * g, b.seg[2] * s.height * g],
+      seg: [
+        b.seg[0] * s.height * (isClav ? s.girth : g),
+        b.seg[1] * s.height * g,
+        b.seg[2] * s.height * g,
+      ],
       radius: b.radius * s.height * s.girth,
     };
   });

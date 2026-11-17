@@ -66,7 +66,43 @@ export class AudioEngine {
     if (state.beatPhase === 0 && this.lastBeat !== state.barBeat) {
       this.lastBeat = state.barBeat;
       if (state.roundPhase !== 'FIGHT') return;
-      // Berimbau Gunga pattern: Dong (0), Tch (1), Ding (2), Tch (3)
+
+      if (state.toque === 'angola') {
+        // Meditative deep Gunga Angola pattern: low open Dong (0), pandeiro rest (1), warm Ding (2), muted Tch (3)
+        if (state.barBeat === 0) {
+          this.playTone(124, 114, 0.3, 'triangle', 0.16);
+          this.playTone(86, 48, 0.22, 'sine', 0.18);
+        } else if (state.barBeat === 1) {
+          this.playNoise(0.055, 2100, 0.035);
+        } else if (state.barBeat === 2) {
+          this.playTone(152, 145, 0.24, 'triangle', 0.12);
+          this.playNoise(0.06, 2300, 0.05);
+        } else {
+          this.playNoise(0.05, 2900, 0.045);
+        }
+        return;
+      }
+
+      if (state.toque === 'iuna') {
+        // High-tempo celebratory Iúna pattern: crisp Dong (0), double accent Ding (1), soaring Ding (2), double Tch-tch (3)
+        if (state.barBeat === 0) {
+          this.playTone(164, 152, 0.19, 'triangle', 0.15);
+          this.playTone(124, 66, 0.13, 'sine', 0.15);
+        } else if (state.barBeat === 1) {
+          this.playTone(188, 182, 0.13, 'triangle', 0.09);
+          this.playNoise(0.04, 3400, 0.06);
+        } else if (state.barBeat === 2) {
+          this.playTone(204, 194, 0.17, 'triangle', 0.13);
+          this.playTone(620, 610, 0.08, 'sine', 0.05);
+          this.playNoise(0.05, 3100, 0.065);
+        } else {
+          this.playNoise(0.04, 3800, 0.055);
+          this.playTone(460, 440, 0.05, 'triangle', 0.045);
+        }
+        return;
+      }
+
+      // São Bento Grande (default): Dong (0), Tch (1), Ding (2), Tch (3)
       if (state.barBeat === 0) {
         this.playTone(148, 138, 0.22, 'triangle', 0.14); // open dong
         this.playTone(110, 58, 0.14, 'sine', 0.16);      // atabaque bass

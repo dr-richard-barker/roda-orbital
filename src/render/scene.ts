@@ -10,9 +10,12 @@ import { evaluateFighterPose } from '../sim/step';
 import type { MatchState } from '../sim/state';
 import { buildEarthRoda, type ArenaHandle } from './arena';
 import { DebugOverlay } from './debug';
-import { applyFKToRig, buildMannequin, type MannequinRig } from './mannequin';
+import { FilterPipeline } from './filters';
+import { applyFKToRig, buildMannequin, type ExpressionMood, type MannequinRig } from './mannequin';
+import { stylePreset, type VisualFilterId, type VisualStyleId } from './presets';
 import { PoseSmoother } from './renderPose';
-import { VfxSystem } from './vfx';
+import { applyToonStyleUniforms } from './toon';
+import { VfxSystem, type ContactAOAnchor } from './vfx';
 
 export class GameRenderer {
   readonly renderer: THREE.WebGLRenderer;
@@ -23,7 +26,15 @@ export class GameRenderer {
 
   private container: HTMLElement;
   private arena: ArenaHandle;
+  private hemi: THREE.HemisphereLight;
+  private sun: THREE.DirectionalLight;
+  private rim: THREE.DirectionalLight;
+  private filters: FilterPipeline;
   private rigs: [MannequinRig, MannequinRig];
+  private slotMeta: [
+    { charId: string; paletteIdx: number; costume: CostumeId },
+    { charId: string; paletteIdx: number; costume: CostumeId },
+  ];
   private smoothers: [PoseSmoother, PoseSmoother] = [new PoseSmoother(), new PoseSmoother()];
   private fks: [FK, FK] = [newFK(), newFK()];
   private posePrev = emptyPose();
@@ -32,10 +43,18 @@ export class GameRenderer {
   private camRight = new THREE.Vector3(1, 0, 0);
   private camShake = 0;
   private elapsedSec = 0;
+  private styleId: VisualStyleId = 'sf2';
+  private filterId: VisualFilterId = 'none';
   private retroMode = false;
+  private prevAirborne: [boolean, boolean] = [false, false];
+  private finisherTimer = 0;
+  private finisherMax = 0.5;
+  private finisherZoom = 0;
+  private finisherPos = new THREE.Vector3();
 
   // Previous frame world positions of attacking limbs for SF2 smear trails
   private prevTrailPos = new Map<string, THREE.Vector3>();
+  private aoContacts: ContactAOAnchor[] = [];
 
   constructor(container: HTMLElement, initialState: MatchState) {
     this.container = container;
@@ -55,29 +74,47 @@ export class GameRenderer {
     // Warm arcade sunset key light + cool rim bounce
     const hemi = new THREE.HemisphereLight(0xffe6cc, 0x3b2442, 1.15);
     this.scene.add(hemi);
+    this.hemi = hemi;
 
-    const sun = new THREE.DirectionalLight(0xfff1d6, 2.35);
+    const sun = new THREE.DirectionalLight(0xfff1d6, 2.38);
     sun.position.set(5, 9, 6);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.bias = -0.0004;
+    sun.shadow.normalBias = 0.014;
     sun.shadow.camera.near = 1;
-    sun.shadow.camera.far = 30;
-    sun.shadow.camera.left = -8;
-    sun.shadow.camera.right = 8;
-    sun.shadow.camera.top = 8;
-    sun.shadow.camera.bottom = -8;
+    sun.shadow.camera.far = 26;
+    sun.shadow.camera.left = -5.5;
+    sun.shadow.camera.right = 5.5;
+    sun.shadow.camera.top = 5.5;
+    sun.shadow.camera.bottom = -5.5;
     this.scene.add(sun);
+    this.scene.add(sun.target);
+    this.sun = sun;
 
     // Subtle cool back-rim directional for crisp SF2 silhouette separation
     const rim = new THREE.DirectionalLight(0x88b4ff, 0.75);
     rim.position.set(-4, 4, -6);
     this.scene.add(rim);
+    this.rim = rim;
 
     this.arena = buildEarthRoda(initialState.config.arenaRadius);
     this.scene.add(this.arena.group);
     this.scene.add(this.vfx.group);
     this.scene.add(this.debug.group);
 
+    this.slotMeta = [
+      {
+        charId: initialState.fighters[0].charId,
+        paletteIdx: initialState.fighters[0].paletteIdx,
+        costume: initialState.fighters[0].costume,
+      },
+      {
+        charId: initialState.fighters[1].charId,
+        paletteIdx: initialState.fighters[1].paletteIdx,
+        costume: initialState.fighters[1].costume,
+      },
+    ];
     this.rigs = [
       buildMannequin(
         charById(initialState.fighters[0].charId),
@@ -93,6 +130,15 @@ export class GameRenderer {
     this.scene.add(this.rigs[0].root);
     this.scene.add(this.rigs[1].root);
 
+    this.filters = new FilterPipeline(
+      this.renderer,
+      this.scene,
+      this.camera,
+      container.clientWidth || window.innerWidth,
+      container.clientHeight || window.innerHeight,
+    );
+    this.setStyle('sf2');
+
     window.addEventListener('resize', () => this.resize(container));
   }
 
@@ -101,22 +147,48 @@ export class GameRenderer {
     const h = container.clientHeight || window.innerHeight;
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
-    if (this.retroMode) {
-      // CPS-1 arcade crispness (~384p vertical internal buffer scaled cleanly)
-      this.renderer.setPixelRatio(1);
-      const scale = Math.min(1, 360 / Math.max(1, h));
-      this.renderer.setSize(Math.round(w * scale), Math.round(h * scale), false);
-    } else {
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      this.renderer.setSize(w, h);
-    }
+    const pr = Math.min(window.devicePixelRatio, 2);
+    this.renderer.setPixelRatio(pr);
+    this.renderer.setSize(w, h);
+    this.filters.setSize(w, h, pr);
+  }
+
+  setStyle(styleId: VisualStyleId): void {
+    this.styleId = styleId;
+    const p = stylePreset(styleId);
+    this.scene.background = new THREE.Color(p.bgHex);
+    this.scene.fog = new THREE.Fog(p.fogHex, p.fogNear, p.fogFar);
+    this.hemi.color.setHex(p.hemiSky);
+    this.hemi.groundColor.setHex(p.hemiGround);
+    this.hemi.intensity = p.hemiIntensity;
+    this.sun.color.setHex(p.sunColor);
+    this.sun.intensity = p.sunIntensity;
+    this.rim.color.setHex(p.rimColor);
+    this.rim.intensity = p.rimIntensity;
+    this.renderer.toneMappingExposure = p.exposure;
+    applyToonStyleUniforms(p);
+    this.arena.applyStyle(styleId);
+  }
+
+  getStyle(): VisualStyleId {
+    return this.styleId;
+  }
+
+  setFilter(filterId: VisualFilterId): void {
+    this.filterId = filterId;
+    this.retroMode = filterId === 'crt';
+    this.filters.setFilter(filterId);
+    this.renderer.domElement.classList.toggle('retro-canvas', false);
+    document.body.classList.toggle('crt-scanlines', false);
+    this.resize(this.container);
+  }
+
+  getFilter(): VisualFilterId {
+    return this.filterId;
   }
 
   setRetroMode(enabled: boolean): void {
-    this.retroMode = enabled;
-    this.renderer.domElement.classList.toggle('retro-canvas', enabled);
-    document.body.classList.toggle('crt-scanlines', enabled);
-    this.resize(this.container);
+    this.setFilter(enabled ? 'crt' : 'none');
   }
 
   isRetroMode(): boolean {
@@ -127,13 +199,29 @@ export class GameRenderer {
     const wasVisible = this.rigs[slot].root.visible;
     this.scene.remove(this.rigs[slot].root);
     this.rigs[slot].dispose();
+    this.slotMeta[slot] = { charId, paletteIdx, costume };
     this.rigs[slot] = buildMannequin(charById(charId), paletteIdx, costume);
     this.rigs[slot].root.visible = wasVisible;
     this.scene.add(this.rigs[slot].root);
   }
 
   setCostume(slot: 0 | 1, costume: CostumeId): void {
-    this.rigs[slot].setCostume(costume);
+    const prev = this.slotMeta[slot];
+    const quickSwap =
+      (prev.costume === 'default' || prev.costume === 'maculele') &&
+      (costume === 'default' || costume === 'maculele');
+    prev.costume = costume;
+    if (quickSwap) {
+      this.rigs[slot].setCostume(costume);
+    } else {
+      this.rebuildFighter(slot, prev.charId, prev.paletteIdx, costume);
+    }
+  }
+
+  setPalette(slot: 0 | 1, paletteIdx: number): void {
+    const cur = this.slotMeta[slot];
+    if (cur.paletteIdx === paletteIdx) return;
+    this.rebuildFighter(slot, cur.charId, paletteIdx, cur.costume);
   }
 
   setFighterVisible(slot: 0 | 1, visible: boolean): void {
@@ -148,6 +236,17 @@ export class GameRenderer {
 
   triggerShake(amount = 0.08): void {
     this.camShake = Math.max(this.camShake, amount);
+  }
+
+  /** Trigger KO or harmony milestone micro-zoom, VFX ring, and brief Kinetic Ghost echo flare. */
+  triggerFinisherPolish(pos: [number, number, number], intensity: 'KO' | 'MILESTONE'): void {
+    const dur = intensity === 'KO' ? 0.56 : 0.34;
+    this.finisherTimer = Math.max(this.finisherTimer, dur);
+    this.finisherMax = dur;
+    this.finisherZoom = intensity === 'KO' ? 0.72 : 0.42;
+    this.finisherPos.set(pos[0], pos[1], pos[2]);
+    this.vfx.spawnBeatRing(pos, intensity === 'KO' ? 0xff4d6d : 0x80ffdb);
+    this.filters.triggerPeakFlare(dur);
   }
 
   private emitAttackTrails(slot: 0 | 1, f: MatchState['fighters'][0], fk: FK): void {
@@ -199,6 +298,7 @@ export class GameRenderer {
     cameraOrbit?: { yaw: number; pitch: number; dist: number; focusSlot?: 0 | 'mid' },
   ): void {
     this.elapsedSec += dtReal;
+    this.aoContacts.length = 0;
 
     for (let i = 0; i < 2; i++) {
       const pf = prev.fighters[i];
@@ -207,8 +307,8 @@ export class GameRenderer {
       const def = charById(cf.charId);
       const skel = scaleSkeleton(def.body);
 
-      evaluateFighterPose(pf, this.posePrev, prev.frame);
-      evaluateFighterPose(cf, this.poseCurr, curr.frame);
+      evaluateFighterPose(pf, this.posePrev, prev.frame, prev.fighters[1 - i]);
+      evaluateFighterPose(cf, this.poseCurr, curr.frame, curr.fighters[1 - i]);
       blendPose(this.posePrev, this.poseCurr, alpha, this.poseBlend);
 
       // Renderer-only smooth transition cross-fade + living breath
@@ -229,24 +329,100 @@ export class GameRenderer {
       const fz = lerp(pf.facing[1], cf.facing[1], alpha);
       const fl = Math.hypot(fx, fz) || 1;
 
-      computeFK(finalPose, skel, pos, fx / fl, fz / fl, this.fks[i]);
-      applyGroundPinning(this.fks[i], skel, cf);
-      applyFKToRig(this.rigs[i], this.fks[i]);
+      const fk = this.fks[i];
+      computeFK(finalPose, skel, pos, fx / fl, fz / fl, fk);
+      applyGroundPinning(fk, skel, cf);
+      applyFKToRig(this.rigs[i], fk);
+
+      // Record planted foot & palm contact AO puddles for near-floor limbs
+      for (const [fBone, tBone] of [
+        ['footL', 'toeL'],
+        ['footR', 'toeR'],
+      ] as [BoneId, BoneId][]) {
+        const fi = BONE_INDEX[fBone] * 3;
+        const ti = BONE_INDEX[tBone] * 3;
+        const fClr = fk.joints[fi + 1] - fk.radii[BONE_INDEX[fBone]] - 0.025;
+        const tClr = Math.min(fk.joints[ti + 1], fk.tips[ti + 1]) - fk.radii[BONE_INDEX[tBone]];
+        const clearance = Math.min(fClr, tClr);
+        if (clearance < 0.2) {
+          this.aoContacts.push({
+            x: (fk.joints[fi] + fk.tips[ti]) * 0.5,
+            z: (fk.joints[fi + 2] + fk.tips[ti + 2]) * 0.5,
+            clearance: Math.max(0, clearance),
+            radius: 0.145,
+          });
+        }
+      }
+      for (const hBone of ['handL', 'handR'] as BoneId[]) {
+        const hi = BONE_INDEX[hBone] * 3;
+        const hRad = fk.radii[BONE_INDEX[hBone]];
+        const clearance = Math.min(fk.joints[hi + 1], fk.tips[hi + 1]) - hRad;
+        if (clearance < 0.18) {
+          this.aoContacts.push({
+            x: (fk.joints[hi] + fk.tips[hi]) * 0.5,
+            z: (fk.joints[hi + 2] + fk.tips[hi + 2]) * 0.5,
+            clearance: Math.max(0, clearance),
+            radius: 0.115,
+          });
+        }
+      }
+
+      let mood: ExpressionMood = 'calm';
+      if (
+        cf.mode === 'HITSTUN' ||
+        cf.mode === 'BLOCKSTUN' ||
+        cf.mode === 'JUGGLE' ||
+        cf.mode === 'KNOCKDOWN' ||
+        cf.mode === 'KO'
+      ) {
+        mood = 'hit';
+      } else if (cf.mode === 'ATTACK') {
+        mood = 'fierce';
+      }
+      this.rigs[i].setExpression(mood);
+
       this.rigs[i].updateSecondary(curr.config.gravityScale, dtReal);
-      this.emitAttackTrails(i as 0 | 1, cf, this.fks[i]);
+      this.emitAttackTrails(i as 0 | 1, cf, fk);
+
+      const airborne = cf.pos[1] > 0.08;
+      if (this.prevAirborne[i] && !airborne) {
+        this.vfx.spawnDust(cf.pos, 5);
+      }
+      this.prevAirborne[i] = airborne;
     }
 
     // Dynamic fighting camera perpendicular to the line between the two fighters
     const p0 = curr.fighters[0].pos;
     const p1 = curr.fighters[1].pos;
-    const midX = (p0[0] + p1[0]) * 0.5;
-    const midY = (p0[1] + p1[1]) * 0.5 + 0.96;
-    const midZ = (p0[2] + p1[2]) * 0.5;
+    const focusSingle = cameraOrbit?.focusSlot === 0;
+    const maxApex = focusSingle ? p0[1] : Math.max(p0[1], p1[1]);
+    let midX = focusSingle ? p0[0] : (p0[0] + p1[0]) * 0.5;
+    let midY = focusSingle ? p0[1] + 0.92 : (p0[1] + p1[1]) * 0.44 + 0.90;
+    let midZ = focusSingle ? p0[2] : (p0[2] + p1[2]) * 0.5;
+
+    // Track crisp 2K sun shadow frustum onto active fighters
+    const sp = stylePreset(this.styleId).sunPos;
+    this.sun.target.position.set(midX, 0, midZ);
+    this.sun.position.set(midX + sp[0], sp[1], midZ + sp[2]);
+    this.sun.target.updateMatrixWorld();
 
     const dx = p1[0] - p0[0];
     const dz = p1[2] - p0[2];
     const sep = Math.hypot(dx, dz);
-    const camDist = Math.max(3.8, Math.min(7.0, 2.6 + sep * 0.88));
+    let camDist = Math.max(4.35, Math.min(8.8, 2.95 + sep * 0.88 + maxApex * 0.52));
+
+    let finisherEnv = 0;
+    if (this.finisherTimer > 0) {
+      this.finisherTimer = Math.max(0, this.finisherTimer - dtReal);
+      const u = this.finisherMax > 0 ? this.finisherTimer / this.finisherMax : 0;
+      finisherEnv = Math.sin(u * Math.PI);
+      if (!focusSingle) {
+        midX = lerp(midX, this.finisherPos.x, finisherEnv * 0.36);
+        midY = lerp(midY, Math.max(0.75, this.finisherPos.y), finisherEnv * 0.32);
+        midZ = lerp(midZ, this.finisherPos.z, finisherEnv * 0.36);
+        camDist = Math.max(3.6, camDist - this.finisherZoom * finisherEnv);
+      }
+    }
 
     const lx = sep > 0.05 ? dx / sep : 1;
     const lz = sep > 0.05 ? dz / sep : 0;
@@ -262,7 +438,7 @@ export class GameRenderer {
     this.camShake *= 0.82;
 
     if (cameraOrbit) {
-      const focusP = cameraOrbit.focusSlot === 0 ? p0 : [midX, midY - 0.96, midZ];
+      const focusP = cameraOrbit.focusSlot === 0 ? p0 : [midX, midY - 0.92, midZ];
       const fx = focusP[0];
       const fy = focusP[1] + 0.92;
       const fz = focusP[2];
@@ -277,7 +453,7 @@ export class GameRenderer {
     } else {
       const targetCamPos = new THREE.Vector3(
         midX + px * camDist + shakeX,
-        midY + 0.58 + shakeY,
+        midY + 0.56 + maxApex * 0.12 - finisherEnv * 0.14 + shakeY,
         midZ + pz * camDist,
       );
       this.camera.position.lerp(targetCamPos, 0.16);
@@ -285,12 +461,14 @@ export class GameRenderer {
     }
 
     this.arena.updateBeat(curr.beatPhase / curr.framesPerBeat);
+    this.arena.updateCameraVisibility(this.camera.position, new THREE.Vector3(midX, midY, midZ));
+    this.vfx.updateContactAO(this.aoContacts);
     this.vfx.update(dtReal, this.camera.position);
     this.debug.update(
       this.rigs[1].root.visible ? curr.fighters : [curr.fighters[0]],
       this.rigs[1].root.visible ? this.fks : [this.fks[0]],
     );
 
-    this.renderer.render(this.scene, this.camera);
+    this.filters.render(dtReal, this.camShake);
   }
 }

@@ -28,17 +28,87 @@ interface ArcSlice {
   maxLife: number;
 }
 
+export interface ContactAOAnchor {
+  x: number;
+  z: number;
+  clearance: number;
+  radius: number;
+}
+
+function makeContactAOTexture(): THREE.CanvasTexture | null {
+  if (typeof document === 'undefined') return null;
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 64;
+  const ctx = c.getContext('2d');
+  if (!ctx) return null;
+  const grad = ctx.createRadialGradient(32, 32, 4, 32, 32, 31);
+  grad.addColorStop(0, 'rgba(18, 8, 12, 0.92)');
+  grad.addColorStop(0.5, 'rgba(18, 8, 12, 0.45)');
+  grad.addColorStop(1, 'rgba(18, 8, 12, 0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(c);
+  tex.needsUpdate = true;
+  return tex;
+}
+
 export class VfxSystem {
   readonly group = new THREE.Group();
   private sparks: Spark[] = [];
   private bursts: Burst[] = [];
   private rings: RingWave[] = [];
   private arcs: ArcSlice[] = [];
+  private aoPool: THREE.Mesh[] = [];
 
   private sparkGeo = new THREE.OctahedronGeometry(0.065, 0);
   private dustGeo = new THREE.SphereGeometry(0.09, 6, 5);
   private ringGeo = new THREE.RingGeometry(0.35, 0.48, 24);
   private spikeGeo = new THREE.ConeGeometry(0.055, 0.34, 4);
+  private aoGeo = new THREE.PlaneGeometry(1, 1);
+  private aoTex = makeContactAOTexture();
+
+  constructor() {
+    for (let i = 0; i < 8; i++) {
+      const mat = new THREE.MeshBasicMaterial({
+        color: this.aoTex ? 0xffffff : 0x160a0e,
+        map: this.aoTex,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+      });
+      const m = new THREE.Mesh(this.aoGeo, mat);
+      m.rotation.x = -Math.PI / 2;
+      m.position.y = 0.004;
+      m.visible = false;
+      m.renderOrder = 1;
+      this.group.add(m);
+      this.aoPool.push(m);
+    }
+  }
+
+  /** Ground contact occlusion puddles directly beneath planted feet & hands. */
+  updateContactAO(anchors: readonly ContactAOAnchor[]): void {
+    for (let i = 0; i < this.aoPool.length; i++) {
+      const mesh = this.aoPool[i];
+      if (i >= anchors.length) {
+        mesh.visible = false;
+        continue;
+      }
+      const a = anchors[i];
+      const clamped = Math.max(0, Math.min(0.22, a.clearance));
+      const fade = 1 - clamped / 0.22;
+      if (fade <= 0.02) {
+        mesh.visible = false;
+        continue;
+      }
+      mesh.visible = true;
+      mesh.position.set(a.x, 0.005, a.z);
+      const scale = a.radius * (2.6 + clamped * 2.4);
+      mesh.scale.set(scale, scale, 1);
+      (mesh.material as THREE.MeshBasicMaterial).opacity = 0.48 * fade * fade;
+    }
+  }
 
   /** Classic SF2 multi-point radial starburst + flying sparks. */
   spawnBurst(pos: Vec3, color: number, count = 12, isBlock = false): void {
@@ -98,23 +168,45 @@ export class VfxSystem {
     }
   }
 
-  /** Kinetic smear segment connecting previous & current limb tip during an active strike. */
+  /** Tapered cross-blade crescent motion smear connecting previous & current limb tip. */
   spawnLimbArc(prev: THREE.Vector3, curr: THREE.Vector3, color: number): void {
     const diff = curr.clone().sub(prev);
     const len = diff.length();
     if (len < 0.025 || len > 1.2) return;
 
-    const geo = new THREE.BoxGeometry(0.032, len * 1.15, 0.11);
+    const dir = diff.clone().multiplyScalar(1 / len);
+    const up = Math.abs(dir.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+    const perpA = new THREE.Vector3().crossVectors(dir, up).normalize();
+    const perpB = new THREE.Vector3().crossVectors(dir, perpA).normalize();
+
+    const wTail = 0.014;
+    const wHead = 0.072;
+    const positions = new Float32Array([
+      // Blade A
+      prev.x - perpA.x * wTail, prev.y - perpA.y * wTail, prev.z - perpA.z * wTail,
+      prev.x + perpA.x * wTail, prev.y + perpA.y * wTail, prev.z + perpA.z * wTail,
+      curr.x + perpA.x * wHead, curr.y + perpA.y * wHead, curr.z + perpA.z * wHead,
+      curr.x - perpA.x * wHead, curr.y - perpA.y * wHead, curr.z - perpA.z * wHead,
+      // Blade B (orthogonal so always visible from any camera angle)
+      prev.x - perpB.x * wTail, prev.y - perpB.y * wTail, prev.z - perpB.z * wTail,
+      prev.x + perpB.x * wTail, prev.y + perpB.y * wTail, prev.z + perpB.z * wTail,
+      curr.x + perpB.x * wHead, curr.y + perpB.y * wHead, curr.z + perpB.z * wHead,
+      curr.x - perpB.x * wHead, curr.y - perpB.y * wHead, curr.z - perpB.z * wHead,
+    ]);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]);
     const mat = new THREE.MeshBasicMaterial({
       color,
       transparent: true,
-      opacity: 0.72,
+      opacity: 0.68,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
     });
     const m = new THREE.Mesh(geo, mat);
-    m.position.copy(prev).add(curr).multiplyScalar(0.5);
-    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), diff.normalize());
     this.group.add(m);
-    this.arcs.push({ mesh: m, life: 0, maxLife: 0.14 });
+    this.arcs.push({ mesh: m, life: 0, maxLife: 0.16 });
   }
 
   spawnDust(pos: Vec3, count = 4): void {

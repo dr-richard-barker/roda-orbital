@@ -1,6 +1,8 @@
-// Cooperative, beat-synchronized Capoeira Partner AI for "Play / Show" Mode (Jogar na Roda).
-// Coordinates Pergunta e Resposta (call & answer) so kicks and sweeps miss in fluid dialogue.
+// Cooperative, beat-synchronized, style-aware Capoeira Partner AI for "Play / Show" Mode (Jogar na Roda).
+// Coordinates Pergunta e Resposta (call & answer) tailored to Angola, Regional, Contemporânea, & Maculelê.
 import { rngNext } from '../core/fixedmath';
+import { charById, type Style } from '../data/characters';
+import { characterProfile, styleSpec } from '../data/fightingStyles';
 import { MOVE_BY_ID } from '../data/moves';
 import {
   RODA_SEQUENCES,
@@ -70,17 +72,18 @@ function canActNow(me: FighterState): boolean {
   return false;
 }
 
-/** Choose Ginga orbiting directional input to keep Capoeira distance expressive and centered. */
-function chooseRodaOrbitDir(me: FighterState, opp: FighterState, dist: number, mem: ShowAiMemory): number {
+/** Choose Ginga orbiting directional input scaled to the fighter's Capoeira style spacing. */
+function chooseRodaOrbitDir(me: FighterState, _opp: FighterState, dist: number, mem: ShowAiMemory, style: Style): number {
   mem.orbitTimer -= 1;
   if (mem.orbitTimer <= 0) {
     mem.orbitTimer = 70 + Math.floor(nextRand(mem) * 60);
     mem.orbitDir = nextRand(mem) < 0.5 ? 4 : 6;
   }
 
+  const [idealMin, idealMax] = styleSpec(style).idealRange;
   // Softly bias back toward center of Roda if near perimeter
   const centerDist = Math.hypot(me.pos[0], me.pos[2]);
-  const approach = dist > 2.05 ? 6 : dist < 1.45 ? 4 : 5;
+  const approach = dist > idealMax ? 6 : dist < idealMin + 0.2 ? 4 : 5;
   const tangent = mem.orbitDir === 6 ? 8 : 2; // relative sidestep (8 = up/left, 2 = down/right)
 
   if (centerDist > 3.8) {
@@ -93,15 +96,24 @@ function chooseRodaOrbitDir(me: FighterState, opp: FighterState, dist: number, m
   return tangent === 8 ? 8 : 2;
 }
 
-function pickBestCallMove(dist: number, mem: ShowAiMemory): { callMoveId: string; preferredAnswerId?: string } {
-  // 60% follow curated traditional Capoeira duet motifs, 40% expressive free calls
-  if (dist >= 1.1 && dist <= 2.15 && nextRand(mem) < 0.65) {
-    const seq = RODA_SEQUENCES[mem.seqIdx % RODA_SEQUENCES.length];
+function pickBestCallMove(
+  me: FighterState,
+  dist: number,
+  mem: ShowAiMemory,
+): { callMoveId: string; preferredAnswerId?: string } {
+  const style = charById(me.charId).style;
+  const spec = styleSpec(style);
+  const styleSeqs = RODA_SEQUENCES.filter((s) => s.styles.includes(style));
+  const seqPool = styleSeqs.length > 0 ? styleSeqs : RODA_SEQUENCES;
+
+  // 70% follow curated Capoeira lineage duet motifs matching fighter style, 30% expressive style calls
+  if (dist >= 1.0 && dist <= 2.25 && nextRand(mem) < 0.7) {
+    const seq = seqPool[mem.seqIdx % seqPool.length];
     const stepDef = seq.steps[mem.stepIdx % seq.steps.length];
     mem.stepIdx += 1;
     if (mem.stepIdx >= seq.steps.length) {
       mem.stepIdx = 0;
-      mem.seqIdx = (mem.seqIdx + 1) % RODA_SEQUENCES.length;
+      mem.seqIdx = (mem.seqIdx + 1) % seqPool.length;
     }
     return stepDef;
   }
@@ -110,7 +122,9 @@ function pickBestCallMove(dist: number, mem: ShowAiMemory): { callMoveId: string
     dist < 1.2
       ? SHOW_CALL_MOVES.close
       : dist <= 2.15
-        ? SHOW_CALL_MOVES.mid
+        ? spec.standingPool.filter((id) => MOVE_BY_ID[id]?.hits.length > 0).length > 0
+          ? spec.standingPool.filter((id) => MOVE_BY_ID[id]?.hits.length > 0)
+          : SHOW_CALL_MOVES.mid
         : SHOW_CALL_MOVES.advance;
   const idx = Math.floor(nextRand(mem) * pool.length);
   return { callMoveId: pool[idx] };
@@ -118,7 +132,7 @@ function pickBestCallMove(dist: number, mem: ShowAiMemory): { callMoveId: string
 
 /**
  * Deterministic supportive partner / Show Duet AI for MatchConfig.playMode === 'SHOW'.
- * Reads opponent attack startup and answers with timed crushes, vaults & esquivas.
+ * Reads opponent attack startup and answers with timed crushes, vaults & esquivas aligned to each character's style.
  */
 export function stepShowAi(state: MatchState, slot: 0 | 1, mem: ShowAiMemory): InputFrame {
   if (state.roundPhase !== 'FIGHT') return EMPTY_INPUT;
@@ -126,23 +140,26 @@ export function stepShowAi(state: MatchState, slot: 0 | 1, mem: ShowAiMemory): I
   const me = state.fighters[slot];
   const opp = state.fighters[slot === 0 ? 1 : 0];
   const dist = fighterDistance(me, opp);
+  const myDef = charById(me.charId);
+  const myProf = characterProfile(me.charId);
 
   if (mem.cooldown > 0) mem.cooldown -= 1;
 
-  // 1. PRIORITY: Supportive synchronization when partner throws an active kick or sweep!
+  // 1. PRIORITY: Supportive synchronization when partner throws an active kick, sweep, or Angola Chamada!
   if (opp.mode === 'ATTACK' && opp.moveId) {
     const oppMove = MOVE_BY_ID[opp.moveId];
-    if (oppMove && oppMove.hits.length > 0 && dist <= 2.85) {
+    if (oppMove && (oppMove.hits.length > 0 || oppMove.id === 'chamada') && dist <= 2.85) {
       const atkKey = `${opp.slot}:${opp.moveId}:${state.frame - opp.moveFrame}`;
       if (mem.answeredAttackKey !== atkKey) {
         const idx = Math.floor(nextRand(mem) * 97);
-        const answer: DialogueAnswer = selectDialogueAnswer(oppMove, me.stance, dist, idx);
-        const midHit = moveMidHitFrame(oppMove.id);
+        const answer: DialogueAnswer = selectDialogueAnswer(oppMove, me.stance, dist, idx, undefined, myDef.style);
+        const midHit = oppMove.hits.length > 0 ? moveMidHitFrame(oppMove.id) : 12;
         const midCrush = answerMidCrushFrame(answer.moveId);
         // Align midpoint of evasion crush window over midpoint of incoming strike's active window
         const triggerAtOppFrame = Math.max(1, midHit - midCrush);
 
-        if (opp.moveFrame >= triggerAtOppFrame && opp.moveFrame <= oppMove.hits[0].frames[1] && canActNow(me)) {
+        const winEnd = oppMove.hits[0]?.frames[1] ?? oppMove.totalFrames - 6;
+        if (opp.moveFrame >= triggerAtOppFrame && opp.moveFrame <= winEnd && canActNow(me)) {
           mem.answeredAttackKey = atkKey;
           mem.cooldown = MOVE_BY_ID[answer.moveId]?.totalFrames ?? 26;
           if (answer.followUpId && nextRand(mem) < 0.72) {
@@ -190,23 +207,24 @@ export function stepShowAi(state: MatchState, slot: 0 | 1, mem: ShowAiMemory): I
   const nearBeat = state.beatPhase <= 5 || state.beatPhase >= state.framesPerBeat - 3;
   const beatAnchor = (state.barBeat === 0 || state.barBeat === 2) && nearBeat;
 
-  // Step back gracefully via Fuga if too close before calling the next kick
-  if (mem.cooldown === 0 && opp.mode !== 'ATTACK' && dist < 1.22 && isMyTurn) {
+  // Step back gracefully via Fuga (or Volta ao Mundo in Angola) if too close before calling the next kick
+  if (mem.cooldown === 0 && opp.mode !== 'ATTACK' && dist < 1.18 && isMyTurn) {
     mem.cooldown = 28;
-    return { dir: 4, buttons: 0, showMoveId: 'fuga' };
+    const resetMove = myDef.style === 'ANGOLA' && nextRand(mem) < 0.45 ? 'volta_ao_mundo' : 'fuga';
+    return { dir: 4, buttons: 0, showMoveId: resetMove };
   }
 
   if (
     mem.cooldown === 0 &&
     opp.mode !== 'ATTACK' &&
-    dist >= 1.22 &&
+    dist >= 1.18 &&
     dist <= 2.65 &&
     ((isMyTurn && beatAnchor) || (isMyTurn && state.frame % 90 === 0))
   ) {
-    const pick = pickBestCallMove(dist, mem);
+    const pick = pickBestCallMove(me, dist, mem);
     const callMove = MOVE_BY_ID[pick.callMoveId];
     if (callMove) {
-      mem.cooldown = callMove.totalFrames + 16;
+      mem.cooldown = Math.max(24, Math.round((callMove.totalFrames + 16) * Math.min(1.18, myProf.tempoMul)));
       return {
         dir: 5,
         buttons: 0,
@@ -215,11 +233,21 @@ export function stepShowAi(state: MatchState, slot: 0 | 1, mem: ShowAiMemory): I
     }
   }
 
-  // 4. Expressive Roda footwork (subtle Ginga circling & spacing between 1.25m and 2.0m)
-  const dir = chooseRodaOrbitDir(me, opp, dist, mem);
-  if (mem.cooldown === 0 && dist >= 1.35 && dist <= 2.05 && nextRand(mem) < 0.018 && nearBeat) {
+  // 4. Expressive Roda footwork (Angola tight circling vs Regional rhythmic bounce vs Contemporânea arcs)
+  const dir = chooseRodaOrbitDir(me, opp, dist, mem, myDef.style);
+  if (mem.cooldown === 0 && dist >= 1.3 && dist <= 2.15 && nextRand(mem) < 0.02 && nearBeat) {
     mem.cooldown = 38;
-    return { dir: 5, buttons: 0, showMoveId: nextRand(mem) < 0.5 ? 'balanca' : 'ginga' };
+    const flairMove =
+      myDef.style === 'ANGOLA'
+        ? nextRand(mem) < 0.5
+          ? 'chamada'
+          : 'balanca'
+        : myDef.style === 'CONTEMPORANEA' && myProf.acroBias > 0.8
+          ? 'bananeira'
+          : nextRand(mem) < 0.5
+            ? 'balanca'
+            : 'ginga';
+    return { dir: 5, buttons: 0, showMoveId: flairMove };
   }
 
   return { dir, buttons: 0 };

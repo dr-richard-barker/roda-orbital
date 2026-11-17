@@ -14,6 +14,44 @@ export const BTN_TAG = 32;
 
 export type PlayMode = 'VERSUS' | 'TRAINING' | 'SHOW';
 
+export type ToqueId = 'angola' | 'sao_bento' | 'iuna';
+
+export interface ToquePreset {
+  id: ToqueId;
+  label: string;
+  shortLabel: string;
+  bpm: number;
+  description: string;
+}
+
+export const TOQUE_PRESETS: readonly ToquePreset[] = [
+  {
+    id: 'angola',
+    label: 'Toque de Angola (88 BPM)',
+    shortLabel: 'Angola · 88',
+    bpm: 88,
+    description: 'Deep, patient meditative Gunga cadence with relaxed rhythm window',
+  },
+  {
+    id: 'sao_bento',
+    label: 'São Bento Grande (105 BPM)',
+    shortLabel: 'São Bento · 105',
+    bpm: 105,
+    description: 'Balanced driving Regional rhythm (standard Roda pace)',
+  },
+  {
+    id: 'iuna',
+    label: 'Iúna (124 BPM)',
+    shortLabel: 'Iúna · 124',
+    bpm: 124,
+    description: 'Fast, celebratory Mestre Bimba acrobatic floreio toque',
+  },
+];
+
+export function toquePreset(id: string | null | undefined): ToquePreset {
+  return TOQUE_PRESETS.find((t) => t.id === id) ?? TOQUE_PRESETS[1];
+}
+
 /** Single-frame player input in relative (facing-independent) numpad notation. */
 export interface InputFrame {
   /** Numpad 1..9 relative to facing (6 = toward opponent, 4 = away, 8 = up/sidestep, 2 = down/crouch, 5 = neutral). */
@@ -121,6 +159,7 @@ export interface MatchConfig {
   rhythmSyncEnabled: boolean;
   trainingMode: boolean;
   playMode?: PlayMode;
+  toque?: ToqueId;
 }
 
 export interface MatchState {
@@ -139,6 +178,7 @@ export interface MatchState {
   winner: -1 | 0 | 1;
 
   // Rhythm clock (sim-owned for determinism)
+  toque: ToqueId;
   bpm: number;
   framesPerBeat: number;
   beatPhase: number; // 0 .. framesPerBeat-1
@@ -206,6 +246,7 @@ export function createMatchState(cfg: Partial<MatchConfig> = {}): MatchState {
   const playMode: PlayMode = cfg.playMode ?? (cfg.trainingMode ? 'TRAINING' : 'VERSUS');
   const trainingMode = playMode === 'TRAINING' ? true : (cfg.trainingMode ?? false);
   const nonElim = playMode !== 'VERSUS';
+  const toque = toquePreset(cfg.toque);
   const config: MatchConfig = {
     p1Char: cfg.p1Char ?? 'faisca',
     p2Char: cfg.p2Char ?? 'faisca',
@@ -218,7 +259,9 @@ export function createMatchState(cfg: Partial<MatchConfig> = {}): MatchState {
     rhythmSyncEnabled: cfg.rhythmSyncEnabled ?? true,
     trainingMode,
     playMode,
+    toque: toque.id,
   };
+  const framesPerBeat = Math.round(3600 / toque.bpm);
   return {
     frame: 0,
     rngSeed: 0x13572468,
@@ -234,13 +277,26 @@ export function createMatchState(cfg: Partial<MatchConfig> = {}): MatchState {
     roundTimerFrames: 99 * 60,
     wins: [0, 0],
     winner: -1,
-    bpm: 105,
-    framesPerBeat: Math.round(3600 / 105), // 34 frames (~105.9 BPM)
+    toque: toque.id,
+    bpm: toque.bpm,
+    framesPerBeat, // 34 frames (~105.9 BPM) for default São Bento Grande
     beatPhase: 0,
     barBeat: 0,
     harmony: makeInitialHarmony(),
     events: [],
   };
+}
+
+/** Update the active Berimbau toque rhythm clock live without breaking beatPhase bounds. */
+export function setMatchToque(s: MatchState, toqueId: ToqueId): void {
+  const preset = toquePreset(toqueId);
+  s.toque = preset.id;
+  s.config.toque = preset.id;
+  s.bpm = preset.bpm;
+  s.framesPerBeat = Math.round(3600 / preset.bpm);
+  if (s.beatPhase >= s.framesPerBeat) {
+    s.beatPhase = s.beatPhase % s.framesPerBeat;
+  }
 }
 
 export function resetRound(s: MatchState): void {
@@ -269,6 +325,7 @@ export function hashMatchState(s: MatchState): number {
   h.i32(s.wins[0]);
   h.i32(s.wins[1]);
   h.i32(s.winner);
+  h.str(s.toque);
   h.i32(s.beatPhase);
   h.i32(s.barBeat);
   h.i32(s.harmony.streak);

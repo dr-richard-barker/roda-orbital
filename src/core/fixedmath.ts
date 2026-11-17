@@ -40,6 +40,59 @@ export function dcos(a: number): number {
   return dsin(a + TAU / 4);
 }
 
+const TAN_PI_8 = 0.41421356237309503; // sqrt(2) - 1
+
+function datanUnit(x: number): number {
+  let offset = 0;
+  let u = x;
+  if (x > TAN_PI_8) {
+    offset = Math.PI / 4;
+    u = (x - 1) / (x + 1);
+  }
+  const u2 = u * u;
+  // 10-term alternating odd Taylor series; max truncation error < 5e-10 on |u| <= tan(PI/8).
+  let p = u;
+  let sum = u;
+  p *= u2; sum -= p / 3;
+  p *= u2; sum += p / 5;
+  p *= u2; sum -= p / 7;
+  p *= u2; sum += p / 9;
+  p *= u2; sum -= p / 11;
+  p *= u2; sum += p / 13;
+  p *= u2; sum -= p / 15;
+  p *= u2; sum += p / 17;
+  p *= u2; sum -= p / 19;
+  return offset + sum;
+}
+
+/** Deterministic arctangent via polynomial series + octant reduction. */
+export function datan(x: number): number {
+  if (x < 0) return -datan(-x);
+  if (x > 1) return Math.PI / 2 - datanUnit(1 / x);
+  return datanUnit(x);
+}
+
+/** Deterministic two-argument arctangent (matches Math.atan2 quadrants). */
+export function datan2(y: number, x: number): number {
+  if (x > 0) return datan(y / x);
+  if (x < 0) return y >= 0 ? datan(y / x) + Math.PI : datan(y / x) - Math.PI;
+  if (y > 0) return Math.PI / 2;
+  if (y < 0) return -Math.PI / 2;
+  return 0;
+}
+
+/** Deterministic arcsine clamped to [-1, 1]. */
+export function dasin(x: number): number {
+  const c = x < -1 ? -1 : x > 1 ? 1 : x;
+  return datan2(c, Math.sqrt(Math.max(0, 1 - c * c)));
+}
+
+/** Deterministic arccosine clamped to [-1, 1]. */
+export function dacos(x: number): number {
+  const c = x < -1 ? -1 : x > 1 ? 1 : x;
+  return datan2(Math.sqrt(Math.max(0, 1 - c * c)), c);
+}
+
 export const PI = Math.PI;
 export const DEG = PI / 180;
 
@@ -122,6 +175,102 @@ export function m3yawFromDir(fx: number, fz: number, out: Mat3 = new Float64Arra
   out[3] = 0; out[4] = 1; out[5] = 0;
   out[6] = -fx; out[7] = 0; out[8] = fz;
   return out;
+}
+
+/** Extract 'XYZ' Euler angles from a row-major 3x3 rotation matrix. */
+export function m3toEulerXYZ(m: Mat3): Vec3 {
+  const y = dasin(clamp(m[2], -1, 1));
+  if (Math.abs(m[2]) < 0.999999) {
+    return [datan2(-m[5], m[8]), y, datan2(-m[1], m[0])];
+  }
+  return [datan2(m[7], m[4]), y, 0];
+}
+
+// ---------- deterministic unit quaternions [x, y, z, w] ----------
+export type Quat = [number, number, number, number];
+
+export function qFromEulerXYZ(x: number, y: number, z: number): Quat {
+  const sx = dsin(x * 0.5), cx = dcos(x * 0.5);
+  const sy = dsin(y * 0.5), cy = dcos(y * 0.5);
+  const sz = dsin(z * 0.5), cz = dcos(z * 0.5);
+  return [
+    sx * cy * cz + cx * sy * sz,
+    cx * sy * cz - sx * cy * sz,
+    cx * cy * sz + sx * sy * cz,
+    cx * cy * cz - sx * sy * sz,
+  ];
+}
+
+export function qNorm(q: Quat): Quat {
+  const len = Math.sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]);
+  if (len <= 1e-12) return [0, 0, 0, 1];
+  const inv = 1 / len;
+  return [q[0] * inv, q[1] * inv, q[2] * inv, q[3] * inv];
+}
+
+export function qMul(a: Quat, b: Quat): Quat {
+  return [
+    a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1],
+    a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0],
+    a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3],
+    a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2],
+  ];
+}
+
+/** Deterministic spherical linear interpolation along the shortest arc. */
+export function qSlerp(a: Quat, b: Quat, t: number): Quat {
+  let bx = b[0], by = b[1], bz = b[2], bw = b[3];
+  let dot = a[0] * bx + a[1] * by + a[2] * bz + a[3] * bw;
+  if (dot < 0) {
+    dot = -dot;
+    bx = -bx;
+    by = -by;
+    bz = -bz;
+    bw = -bw;
+  }
+  if (dot > 0.9995) {
+    return qNorm([
+      a[0] + (bx - a[0]) * t,
+      a[1] + (by - a[1]) * t,
+      a[2] + (bz - a[2]) * t,
+      a[3] + (bw - a[3]) * t,
+    ]);
+  }
+  const theta0 = dacos(dot);
+  const theta = theta0 * t;
+  const sinTheta0 = Math.sqrt(Math.max(1e-12, 1 - dot * dot));
+  const sinTheta = dsin(theta);
+  const cosTheta = dcos(theta);
+  const s0 = cosTheta - (dot * sinTheta) / sinTheta0;
+  const s1 = sinTheta / sinTheta0;
+  return qNorm([
+    s0 * a[0] + s1 * bx,
+    s0 * a[1] + s1 * by,
+    s0 * a[2] + s1 * bz,
+    s0 * a[3] + s1 * bw,
+  ]);
+}
+
+export function qToMat3(q: Quat, out: Mat3 = new Float64Array(9)): Mat3 {
+  const x = q[0], y = q[1], z = q[2], w = q[3];
+  const xx = x * x, yy = y * y, zz = z * z;
+  const xy = x * y, xz = x * z, yz = y * z;
+  const wx = w * x, wy = w * y, wz = w * z;
+  out[0] = 1 - 2 * (yy + zz);
+  out[1] = 2 * (xy - wz);
+  out[2] = 2 * (xz + wy);
+  out[3] = 2 * (xy + wz);
+  out[4] = 1 - 2 * (xx + zz);
+  out[5] = 2 * (yz - wx);
+  out[6] = 2 * (xz - wy);
+  out[7] = 2 * (yz + wx);
+  out[8] = 1 - 2 * (xx + yy);
+  return out;
+}
+
+const _qScratchMat = new Float64Array(9);
+export function qToEulerXYZ(q: Quat): Vec3 {
+  return m3toEulerXYZ(qToMat3(q, _qScratchMat));
 }
 
 // ---------- deterministic PRNG (xorshift32), state stored as a number ----------

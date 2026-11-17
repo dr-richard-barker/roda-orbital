@@ -2,7 +2,18 @@
 // Shared by the simulation (hit/hurt capsules) and the renderer (meshes), so what
 // you see is exactly what can hit and be hit.
 import { BONES, BONE_INDEX, type BoneId, type ScaledBone } from '../data/skeleton';
-import { ease, m3apply, m3euler, m3mul, m3yawFromDir, type Mat3, type Vec3 } from '../core/fixedmath';
+import {
+  ease,
+  m3apply,
+  m3euler,
+  m3mul,
+  m3yawFromDir,
+  qFromEulerXYZ,
+  qSlerp,
+  qToEulerXYZ,
+  type Mat3,
+  type Vec3,
+} from '../core/fixedmath';
 
 export const NB = BONES.length;
 export const POSE_LEN = 6 + NB * 3;
@@ -93,6 +104,70 @@ function applyEasing(u: number, k: Key): number {
 }
 
 /** Sample a track at (possibly fractional) frame t into `out`. */
+/**
+ * Interpolate two poses using shortest-arc deterministic quaternion SLERP per joint.
+ * Root yaw jumps larger than 170° (or multi-turn unwrapped spins) interpolate linearly
+ * along root[4] so continuous 360° tornado/armada spins never reverse direction.
+ */
+function interpPoseQuat(a: Pose, b: Pose, t: number, out: Pose): Pose {
+  if (t <= 0) {
+    out.set(a);
+    return out;
+  }
+  if (t >= 1) {
+    out.set(b);
+    return out;
+  }
+  // Root translation
+  out[0] = a[0] + (b[0] - a[0]) * t;
+  out[1] = a[1] + (b[1] - a[1]) * t;
+  out[2] = a[2] + (b[2] - a[2]) * t;
+
+  // Root orientation: unwrap intentional >170° or +/-360° flips/spins along the same turn sign
+  let linearRoot = false;
+  for (let k = 3; k <= 5; k++) {
+    const ak = a[k], bk = b[k];
+    const diff = Math.abs(bk - ak);
+    const sameSide = ak * bk >= 0;
+    if ((sameSide && (Math.abs(bk) > Math.PI + 0.05 || (Math.abs(ak) > Math.PI + 0.05 && Math.abs(bk) > 0.1))) || (diff > 2.97 && sameSide)) {
+      linearRoot = true;
+      break;
+    }
+  }
+  if (linearRoot) {
+    out[3] = a[3] + (b[3] - a[3]) * t;
+    out[4] = a[4] + (b[4] - a[4]) * t;
+    out[5] = a[5] + (b[5] - a[5]) * t;
+  } else if (a[3] === b[3] && a[4] === b[4] && a[5] === b[5]) {
+    out[3] = a[3];
+    out[4] = a[4];
+    out[5] = a[5];
+  } else {
+    const rq = qSlerp(qFromEulerXYZ(a[3], a[4], a[5]), qFromEulerXYZ(b[3], b[4], b[5]), t);
+    const re = qToEulerXYZ(rq);
+    out[3] = re[0];
+    out[4] = re[1];
+    out[5] = re[2];
+  }
+
+  // Articulated joints
+  for (let i = 6; i < POSE_LEN; i += 3) {
+    const ax = a[i], ay = a[i + 1], az = a[i + 2];
+    const bx = b[i], by = b[i + 1], bz = b[i + 2];
+    if (ax === bx && ay === by && az === bz) {
+      out[i] = ax;
+      out[i + 1] = ay;
+      out[i + 2] = az;
+    } else {
+      const e = qToEulerXYZ(qSlerp(qFromEulerXYZ(ax, ay, az), qFromEulerXYZ(bx, by, bz), t));
+      out[i] = e[0];
+      out[i + 1] = e[1];
+      out[i + 2] = e[2];
+    }
+  }
+  return out;
+}
+
 export function sampleTrack(track: Track, t: number, out: Pose): Pose {
   const keys = track.keys;
   if (track.loop) t = t - Math.floor(t / track.loop) * track.loop;
@@ -106,9 +181,7 @@ export function sampleTrack(track: Track, t: number, out: Pose): Pose {
       const k0 = keys[i - 1];
       let u = (t - k0.f) / Math.max(1e-5, k1.f - k0.f);
       u = applyEasing(u, k1);
-      const a = k0.pose, b = k1.pose;
-      for (let j = 0; j < POSE_LEN; j++) out[j] = a[j] + (b[j] - a[j]) * u;
-      return out;
+      return interpPoseQuat(k0.pose, k1.pose, u, out);
     }
   }
   if (track.loop) {
@@ -116,18 +189,15 @@ export function sampleTrack(track: Track, t: number, out: Pose): Pose {
     const k0 = keys[keys.length - 1];
     let u = (t - k0.f) / Math.max(1e-5, track.loop - k0.f);
     u = applyEasing(u, keys[0]);
-    const a = k0.pose, b = keys[0].pose;
-    for (let j = 0; j < POSE_LEN; j++) out[j] = a[j] + (b[j] - a[j]) * u;
-    return out;
+    return interpPoseQuat(k0.pose, keys[0].pose, u, out);
   }
   out.set(keys[keys.length - 1].pose);
   return out;
 }
 
-/** Blend: out = a*(1-w) + b*w */
+/** Blend two poses via deterministic per-joint quaternion SLERP. */
 export function blendPose(a: Pose, b: Pose, w: number, out: Pose): Pose {
-  for (let j = 0; j < POSE_LEN; j++) out[j] = a[j] + (b[j] - a[j]) * w;
-  return out;
+  return interpPoseQuat(a, b, w, out);
 }
 
 // ---------------------------------------------------------------------------

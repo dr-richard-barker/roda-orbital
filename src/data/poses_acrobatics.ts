@@ -96,7 +96,14 @@ export const TRACK_MACACO: Track = {
       easing: 'coil',
       pose: makePose(POSE_BRIDGE_ARCH, {
         root: { rx: -45, ry: -28 },
-        bones: { upperArmR: [-168, 0, -12], handR: [75, 0, 0], upperArmL: [-55, 0, 35] },
+        bones: {
+          neck: [-22, -16, 0],
+          head: [-24, -18, 0],
+          clavicleR: [0, -14, -18],
+          upperArmR: [-168, 0, -12],
+          handR: [75, 0, 0],
+          upperArmL: [-55, 0, 35],
+        },
       }),
     },
     {
@@ -105,6 +112,8 @@ export const TRACK_MACACO: Track = {
       pose: makePose(POSE_HSP_A, {
         root: { dy: 0.28, rx: -180, rz: 18 },
         bones: {
+          clavicleL: [0, 12, 16],
+          clavicleR: [0, -12, -16],
           upperArmL: [-155, 0, 20],
           upperArmR: [-172, 0, -12],
           thighL: [-15, 0, 26],
@@ -117,8 +126,17 @@ export const TRACK_MACACO: Track = {
     {
       f: 26,
       pose: makePose(POSE_NEUTRAL, {
-        root: { dy: 0.22, rx: -295 },
-        bones: { thighL: [-55, 0, 12], shinL: [75, 0, 0], thighR: [-45, 0, -12], shinR: [65, 0, 0] },
+        root: { dy: 0.14, rx: -295 },
+        bones: {
+          thighL: [-62, 10, 14],
+          shinL: [86, 0, 0],
+          footL: [-18, 0, 0],
+          toeL: [-18, 0, 0],
+          thighR: [-54, -10, -14],
+          shinR: [78, 0, 0],
+          footR: [-18, 0, 0],
+          toeR: [-18, 0, 0],
+        },
       }),
     },
     { f: 36, pose: makePose(POSE_GINGA_MID, { root: { rx: -360 } }) },
@@ -342,13 +360,13 @@ export const TRACK_FOLHA_SECA: Track = {
 export const TRACK_PARAFUSO: Track = {
   keys: [
     { f: 0, pose: POSE_GINGA_R },
-    { f: 6, easing: 'coil', pose: makePose(POSE_GINGA_L, { root: { ry: -80 }, bones: { thighR: [-65, 0, -10], shinR: [95, 0, 0] } }) },
+    { f: 6, easing: 'coil', pose: makePose(POSE_GINGA_L, { root: { ry: -80 }, bones: { thighR: [-65, 0, -10], shinR: [95, 0, 0], footL: [20, 0, 0], toeL: [-30, 0, 0] } }) },
     {
       f: 13,
       easing: 'snap',
       pose: makePose(POSE_NEUTRAL, {
         root: { dy: 0.45, ry: 120, rz: 22 },
-        bones: { thighL: [-105, 0, 20], shinL: [10, 0, 0], thighR: [-35, 0, -15], shinR: [90, 0, 0], upperArmR: [-120, 0, -45] },
+        bones: { thighL: [-105, 0, 20], shinL: [10, 0, 0], footL: [36, 0, 0], thighR: [-35, 0, -15], shinR: [90, 0, 0], upperArmR: [-120, 0, -45] },
       }),
     },
     {
@@ -356,7 +374,14 @@ export const TRACK_PARAFUSO: Track = {
       easing: 'snap',
       pose: makePose(POSE_NEUTRAL, {
         root: { dy: 0.62, ry: 300, rz: -24 },
-        bones: { thighR: [-115, 0, -22], shinR: [8, 0, 0], thighL: [-40, 0, 15], shinL: [85, 0, 0], upperArmL: [-120, 0, 45] },
+        bones: { thighR: [-115, 0, -22], shinR: [8, 0, 0], footR: [36, 0, 0], thighL: [-40, 0, 15], shinL: [85, 0, 0], upperArmL: [-120, 0, 45] },
+      }),
+    },
+    {
+      f: 27,
+      pose: makePose(POSE_GINGA_MID, {
+        root: { dy: 0.08, ry: 350 },
+        bones: { thighL: [-54, 14, 16], shinL: [78, 0, 0], footL: [-22, 0, 0], toeL: [-18, 0, 0], thighR: [-54, -14, -16], shinR: [78, 0, 0], footR: [-22, 0, 0], toeR: [-18, 0, 0] },
       }),
     },
     { f: 32, pose: makePose(POSE_GINGA_MID, { root: { ry: 360 } }) },
